@@ -13,12 +13,14 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ToolRunnerHost } from '../adapters/runners/ToolRunnerHost';
+import { HapticTapOverlay } from '../components/HapticTapOverlay';
 import { toolRepository } from '../repositories/toolRepository';
 import type {
   NavSection,
   ToolManifest,
   WorkspaceTabRecord,
 } from '../types/models';
+import { haptic } from '../utils/haptics';
 
 interface WorkspacePageProps {
   tools: ToolManifest[];
@@ -77,6 +79,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   }, [resolvedTabs, effectiveActiveTabId]);
 
   const handleBack = () => {
+    haptic.light();
     if (onBack) {
       onBack();
     } else {
@@ -124,8 +127,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
             type="button"
             whileTap={{ scale: 0.95 }}
             onClick={() => onNavigate('library')}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
+            className="relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
           >
+            <HapticTapOverlay />
             <LayoutGrid className="w-3.5 h-3.5" />
             <span>Mở Thư viện</span>
           </motion.button>
@@ -133,8 +137,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
             type="button"
             whileTap={{ scale: 0.95 }}
             onClick={() => onOpenImportModal('create')}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1F1F23] text-neutral-800 dark:text-neutral-100 transition-colors"
+            className="relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1F1F23] text-neutral-800 dark:text-neutral-100 transition-colors"
           >
+            <HapticTapOverlay />
             <Code2 className="w-3.5 h-3.5 text-[#FF6B35]" />
             <span>Tạo code</span>
           </motion.button>
@@ -144,7 +149,12 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-40 w-full flex flex-col bg-white dark:bg-[#0A0A0C] overflow-hidden lg:static lg:z-auto lg:h-[calc(100vh-2rem)] lg:rounded-2xl lg:border lg:border-black/[0.07] lg:dark:border-white/[0.08] lg:bg-white lg:dark:bg-[#161618] lg:shadow-xs">
+    <motion.div
+      initial={{ opacity: 0, y: 14, scale: 0.988 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 460, damping: 36, mass: 0.72 }}
+      className="fixed inset-0 z-40 w-full flex flex-col bg-white dark:bg-[#0A0A0C] overflow-hidden lg:static lg:z-auto lg:h-[calc(100vh-2rem)] lg:rounded-2xl lg:border lg:border-black/[0.07] lg:dark:border-white/[0.08] lg:bg-white lg:dark:bg-[#161618] lg:shadow-xs"
+    >
       {/* Slim Single-Row Mobile & Desktop Top Bar (respects Dynamic Island safe area) */}
       <div className="ios-top-safe shrink-0 border-b border-black/[0.07] dark:border-white/[0.08] bg-white/95 dark:bg-[#111113]/95 backdrop-blur-xl">
         <div className="h-11 flex items-center justify-between gap-1.5 px-1.5 sm:px-2.5">
@@ -154,8 +164,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
             onClick={handleBack}
             aria-label="Quay lại"
             title="Quay lại"
-            className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition shrink-0"
+            className="relative min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition shrink-0"
           >
+            <HapticTapOverlay />
             <ArrowLeft className="w-4 h-4" />
           </motion.button>
 
@@ -172,15 +183,18 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => onSelectTab(tab.id)}
-                  className={`group flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-xl text-xs font-medium transition shrink-0 cursor-pointer border ${
+                  className={`relative group flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-xl text-xs font-medium transition shrink-0 cursor-pointer border ${
                     isActive
                       ? 'bg-neutral-100 dark:bg-white/[0.10] text-neutral-950 dark:text-white border-black/[0.06] dark:border-white/[0.10] font-semibold'
                       : 'bg-transparent border-transparent text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
                   }`}
                 >
-                  {renderTabIcon(tool.type)}
-                  <span className="truncate max-w-[130px] sm:max-w-[170px]">
-                    {tool.name}
+                  <HapticTapOverlay zClass="z-0" />
+                  <span className="pointer-events-none flex items-center gap-1.5 min-w-0">
+                    {renderTabIcon(tool.type)}
+                    <span className="truncate max-w-[130px] sm:max-w-[170px]">
+                      {tool.name}
+                    </span>
                   </span>
                   <button
                     type="button"
@@ -189,8 +203,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                       onCloseTab(tab.id);
                     }}
                     aria-label={`Đóng ${tool.name}`}
-                    className="p-1 rounded-lg text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 transition"
+                    className="relative z-10 p-1 rounded-lg text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 transition"
                   >
+                    <HapticTapOverlay />
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -206,8 +221,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                 onClick={() => onEditCode(activeTool)}
                 aria-label="Sửa mã nguồn"
                 title="Sửa mã nguồn"
-                className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl text-[#FF6B35] hover:bg-[#FF6B35]/10 transition"
+                className="relative min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl text-[#FF6B35] hover:bg-[#FF6B35]/10 transition"
               >
+                <HapticTapOverlay />
                 <Code2 className="w-4 h-4" />
               </motion.button>
             )}
@@ -217,8 +233,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
               onClick={() => onNavigate('library')}
               aria-label="Mở thêm"
               title="Mở thêm"
-              className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
+              className="relative min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
             >
+              <HapticTapOverlay />
               <Plus className="w-4 h-4" />
             </motion.button>
             {resolvedTabs.length > 1 && (
@@ -261,6 +278,6 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 };

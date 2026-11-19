@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ToolManifest } from '../types/models';
+import { HapticTapOverlay } from './HapticTapOverlay';
 
 interface ToolCardProps {
   tool: ToolManifest;
@@ -74,27 +75,28 @@ export const ToolCard: React.FC<ToolCardProps> = ({
 
   return (
     <motion.article
+      layout="position"
       role="button"
       tabIndex={0}
       aria-label={`Mở ${tool.name}`}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.965 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+      whileTap={{ scale: 0.955 }}
+      transition={{ type: 'spring', stiffness: 560, damping: 30, mass: 0.6 }}
       onClick={() => onLaunch(tool)}
       onKeyDown={handleKeyDown}
-      className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 sm:p-4 cursor-pointer select-none transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B35] ${
+      className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 sm:p-4 cursor-pointer select-none transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B35] ${
         isOpenInWorkspace
           ? 'border-neutral-900/20 dark:border-white/25 bg-white dark:bg-[#1A1A1D] shadow-[0_2px_10px_rgba(0,0,0,0.05)]'
           : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] hover:border-black/[0.12] dark:hover:border-white/[0.15] shadow-[0_1px_2px_rgba(0,0,0,0.03)]'
       }`}
     >
+      <HapticTapOverlay zClass="z-0" />
       <div className="flex items-start justify-between gap-2">
-        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] bg-neutral-100 dark:bg-white/[0.07] flex items-center justify-center transition-transform duration-150 group-hover:scale-[1.04]">
+        <div className="pointer-events-none w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] bg-neutral-100 dark:bg-white/[0.07] flex items-center justify-center transition-transform duration-150 group-hover:scale-[1.04]">
           {renderToolTypeGlyph(tool)}
         </div>
 
         <div
-          className="flex items-center -mr-1 -mt-1"
+          className="relative z-10 flex items-center -mr-1 -mt-1"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
@@ -106,17 +108,18 @@ export const ToolCard: React.FC<ToolCardProps> = ({
               tool.favorite ? `Bỏ yêu thích ${tool.name}` : `Yêu thích ${tool.name}`
             }
             title={tool.favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-            className={`p-2 rounded-xl transition-colors ${
+            className={`relative p-2 rounded-xl transition-colors ${
               tool.favorite
                 ? 'text-amber-500 dark:text-amber-400'
                 : 'text-neutral-400 dark:text-neutral-500 opacity-75 group-hover:opacity-100 hover:text-neutral-800 dark:hover:text-neutral-100'
             }`}
           >
+            <HapticTapOverlay />
             <motion.span
               key={tool.favorite ? 'fav' : 'unfav'}
-              initial={{ scale: 0.75 }}
+              initial={{ scale: 0.7 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 550, damping: 20 }}
+              transition={{ type: 'spring', stiffness: 620, damping: 18 }}
               className="block"
             >
               <Star className={`w-4 h-4 ${tool.favorite ? 'fill-current' : ''}`} />
@@ -129,14 +132,15 @@ export const ToolCard: React.FC<ToolCardProps> = ({
             onClick={() => onEdit(tool)}
             aria-label={`Tùy chọn ${tool.name}`}
             title="Chi tiết"
-            className="p-2 rounded-xl text-neutral-400 dark:text-neutral-500 opacity-75 group-hover:opacity-100 hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
+            className="relative p-2 rounded-xl text-neutral-400 dark:text-neutral-500 opacity-75 group-hover:opacity-100 hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
           >
+            <HapticTapOverlay />
             <MoreHorizontal className="w-4 h-4" />
           </motion.button>
         </div>
       </div>
 
-      <h3 className="mt-3.5 text-[13px] sm:text-sm font-semibold tracking-[-0.01em] text-neutral-900 dark:text-neutral-50 line-clamp-2 leading-snug">
+      <h3 className="pointer-events-none mt-3.5 text-[13px] sm:text-sm font-semibold tracking-[-0.01em] text-neutral-900 dark:text-neutral-50 line-clamp-2 leading-snug">
         {tool.name}
       </h3>
     </motion.article>

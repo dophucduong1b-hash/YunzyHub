@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { LayoutGrid, Plus, Search, X } from 'lucide-react';
 import { motion } from 'motion/react';
+import { HapticTapOverlay } from '../components/HapticTapOverlay';
 import { ToolCard } from '../components/ToolCard';
 import type {
   HistoryRecord,
@@ -87,6 +88,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               aria-label="Xóa tìm kiếm"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
             >
+              <HapticTapOverlay />
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -98,8 +100,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           onClick={() => onNavigate('library')}
           aria-label="Thư viện"
           title="Thư viện"
-          className="lg:hidden inline-flex items-center justify-center p-2.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] text-neutral-700 dark:text-neutral-200 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+          className="relative lg:hidden inline-flex items-center justify-center p-2.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] text-neutral-700 dark:text-neutral-200 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
         >
+          <HapticTapOverlay />
           <LayoutGrid className="w-4 h-4" />
         </motion.button>
 
@@ -107,8 +110,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           type="button"
           whileTap={{ scale: 0.94 }}
           onClick={() => onOpenImportModal('file')}
-          className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-2xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors whitespace-nowrap shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+          className="relative inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-2xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors whitespace-nowrap shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
         >
+          <HapticTapOverlay />
           <Plus className="w-4 h-4" />
           <span>Thêm</span>
         </motion.button>
@@ -125,8 +129,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               type="button"
               whileTap={{ scale: 0.95 }}
               onClick={() => onOpenImportModal('file')}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
+              className="relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
             >
+              <HapticTapOverlay />
               <Plus className="w-4 h-4" />
               <span>Thêm</span>
             </motion.button>
@@ -134,8 +139,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               type="button"
               whileTap={{ scale: 0.95 }}
               onClick={() => onOpenImportModal('create')}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1F1F23] text-neutral-800 dark:text-neutral-100 transition-colors"
+              className="relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1F1F23] text-neutral-800 dark:text-neutral-100 transition-colors"
             >
+              <HapticTapOverlay />
               <span>Tạo code</span>
             </motion.button>
           </div>

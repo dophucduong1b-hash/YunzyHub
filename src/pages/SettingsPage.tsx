@@ -11,12 +11,14 @@ import {
   Sun,
   Trash2,
   Upload,
+  Vibrate,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   RUNNER_LIMITATIONS_VI,
   SANDBOX_CSP_DIRECTIVE,
 } from '../adapters/runners/cspBuilder';
+import { HapticTapOverlay } from '../components/HapticTapOverlay';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import {
   formatBytes,
@@ -30,6 +32,8 @@ interface SettingsPageProps {
   tools: ToolManifest[];
   theme: ThemeMode;
   onThemeChange: (nextTheme: ThemeMode) => void;
+  hapticsEnabled?: boolean;
+  onHapticsEnabledChange?: (enabled: boolean) => void;
 }
 
 const SEGMENT_SPRING = {
@@ -43,6 +47,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   tools,
   theme,
   onThemeChange,
+  hapticsEnabled = true,
+  onHapticsEnabledChange,
 }) => {
   const [storageEstimate, setStorageEstimate] = useState<{
     usage: number;
@@ -192,12 +198,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             }}
             aria-label="Thông tin kỹ thuật và bảo mật"
             title="Thông tin"
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+            className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
               showAdvancedInfo
                 ? 'border-neutral-900/20 dark:border-white/25 bg-neutral-900/[0.06] dark:bg-white/[0.12] text-neutral-950 dark:text-white font-semibold'
                 : 'border-black/[0.07] dark:border-white/[0.09] bg-white dark:bg-[#161618] text-neutral-700 dark:text-neutral-200'
             }`}
           >
+            <HapticTapOverlay />
             <Info className="w-3.5 h-3.5" />
             <span>Thông tin</span>
           </motion.button>
@@ -267,6 +274,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                 >
+                  <HapticTapOverlay />
                   {active && (
                     <motion.span
                       layoutId="theme-segment-pill"
@@ -280,6 +288,38 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               );
             })}
           </div>
+        </div>
+
+        {/* Haptic Feedback */}
+        <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Vibrate className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
+            <span className="text-sm font-medium text-neutral-900 dark:text-white">
+              Phản hồi rung
+            </span>
+          </div>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={hapticsEnabled}
+            aria-label="Phản hồi rung"
+            onClick={() => onHapticsEnabledChange?.(!hapticsEnabled)}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B35]/50 ${
+              hapticsEnabled
+                ? 'bg-[#34C759] dark:bg-[#30D158]'
+                : 'bg-black/[0.14] dark:bg-white/[0.18]'
+            }`}
+          >
+            <HapticTapOverlay forceEnable />
+            <motion.span
+              layout
+              transition={{ type: 'spring', stiffness: 560, damping: 32 }}
+              className={`pointer-events-none block h-6 w-6 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.22)] ${
+                hapticsEnabled ? 'ml-auto' : 'mr-auto'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Storage */}
@@ -321,8 +361,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             whileTap={{ scale: 0.94 }}
             disabled={busy}
             onClick={handleExportBackup}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 transition-colors disabled:opacity-50"
+            className="relative px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 transition-colors disabled:opacity-50"
           >
+            <HapticTapOverlay disabled={busy} />
             Tải về
           </motion.button>
         </div>
@@ -369,8 +410,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 haptic.light();
                 backupInputRef.current?.click();
               }}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-black/[0.09] dark:border-white/[0.12] bg-white dark:bg-[#1F1F23] text-neutral-900 dark:text-white hover:bg-neutral-50 dark:hover:bg-[#2A2A2E] transition-colors disabled:opacity-50"
+              className="relative px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-black/[0.09] dark:border-white/[0.12] bg-white dark:bg-[#1F1F23] text-neutral-900 dark:text-white hover:bg-neutral-50 dark:hover:bg-[#2A2A2E] transition-colors disabled:opacity-50"
             >
+              <HapticTapOverlay disabled={busy} />
               Chọn tệp
             </motion.button>
           </div>
@@ -394,8 +436,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 haptic.warning();
                 setConfirmClearAll(true);
               }}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              className="relative px-3.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
             >
+              <HapticTapOverlay disabled={busy} />
               Xóa hết
             </motion.button>
           ) : (
@@ -405,8 +448,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 whileTap={{ scale: 0.94 }}
                 disabled={busy}
                 onClick={handleClearAll}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-500 transition-colors"
+                className="relative px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-500 transition-colors"
               >
+                <HapticTapOverlay disabled={busy} />
                 Xác nhận
               </motion.button>
               <motion.button
@@ -416,8 +460,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   haptic.light();
                   setConfirmClearAll(false);
                 }}
-                className="px-2.5 py-1.5 rounded-lg text-xs text-neutral-600 dark:text-neutral-300"
+                className="relative px-2.5 py-1.5 rounded-lg text-xs text-neutral-600 dark:text-neutral-300"
               >
+                <HapticTapOverlay />
                 Hủy
               </motion.button>
             </div>

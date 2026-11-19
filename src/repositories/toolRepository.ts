@@ -70,6 +70,7 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   libraryView: 'grid',
   activeTabId: null,
   seededSampleTools: false,
+  hapticsEnabled: true,
 };
 
 export const LEGACY_SAMPLE_TOOL_IDS = [

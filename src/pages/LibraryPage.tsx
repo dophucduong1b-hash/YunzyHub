@@ -11,6 +11,7 @@ import {
   Star,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { HapticTapOverlay } from '../components/HapticTapOverlay';
 import { ToolCard } from '../components/ToolCard';
 import type {
   LibraryViewMode,
@@ -111,12 +112,13 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
               setShowFilters((prev) => !prev);
             }}
             aria-expanded={showFilters}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors whitespace-nowrap ${
+            className={`relative inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors whitespace-nowrap ${
               showFilters || activeFilterCount > 0
                 ? 'border-neutral-900/20 dark:border-white/25 bg-neutral-900/[0.06] dark:bg-white/[0.12] text-neutral-950 dark:text-white font-semibold'
                 : 'border-black/[0.07] dark:border-white/[0.09] bg-white dark:bg-[#161618] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-[#1E1E21]'
             }`}
           >
+            <HapticTapOverlay />
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>
               Lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
@@ -140,6 +142,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
+              <HapticTapOverlay />
               {viewMode === 'grid' && (
                 <motion.span
                   layoutId="library-view-pill"
@@ -161,6 +164,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
+              <HapticTapOverlay />
               {viewMode === 'list' && (
                 <motion.span
                   layoutId="library-view-pill"
@@ -176,8 +180,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
             type="button"
             whileTap={{ scale: 0.95 }}
             onClick={() => onOpenImportModal('file')}
-            className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors whitespace-nowrap shadow-2xs"
+            className="relative inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors whitespace-nowrap shadow-2xs"
           >
+            <HapticTapOverlay />
             <Plus className="w-4 h-4" />
             <span>Thêm</span>
           </motion.button>
@@ -256,8 +261,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   setSelectedType('all');
                   setSortBy('updated');
                 }}
-                className="text-xs font-semibold text-[#007AFF] dark:text-[#0A84FF]"
+                className="relative text-xs font-semibold text-[#007AFF] dark:text-[#0A84FF]"
               >
+                <HapticTapOverlay />
                 Đặt lại
               </motion.button>
             )}
@@ -276,8 +282,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
               type="button"
               whileTap={{ scale: 0.95 }}
               onClick={() => onOpenImportModal('file')}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 transition-colors"
+              className="relative inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 transition-colors"
             >
+              <HapticTapOverlay />
               <Plus className="w-4 h-4" />
               <span>Thêm</span>
             </motion.button>
@@ -332,12 +339,13 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                         whileTap={{ scale: 0.84 }}
                         onClick={() => onToggleFavorite(tool)}
                         aria-label={tool.favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`relative p-2 rounded-lg transition-colors ${
                           tool.favorite
                             ? 'text-amber-500 dark:text-amber-400'
                             : 'text-neutral-400 hover:text-neutral-800 dark:hover:text-white'
                         }`}
                       >
+                        <HapticTapOverlay />
                         <Star
                           className={`w-4 h-4 ${tool.favorite ? 'fill-current' : ''}`}
                         />
@@ -347,8 +355,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                         whileTap={{ scale: 0.84 }}
                         onClick={() => onEditTool(tool)}
                         aria-label={`Tùy chọn ${tool.name}`}
-                        className="p-2 rounded-lg text-neutral-400 hover:text-neutral-800 dark:hover:text-white transition-colors"
+                        className="relative p-2 rounded-lg text-neutral-400 hover:text-neutral-800 dark:hover:text-white transition-colors"
                       >
+                        <HapticTapOverlay />
                         <MoreHorizontal className="w-4 h-4" />
                       </motion.button>
                     </div>

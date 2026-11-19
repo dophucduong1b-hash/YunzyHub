@@ -70,6 +70,7 @@ export interface AppPreferences {
   libraryView: LibraryViewMode;
   activeTabId: string | null;
   seededSampleTools: boolean;
+  hapticsEnabled?: boolean;
 }
 
 export interface ToolStorageRecord {

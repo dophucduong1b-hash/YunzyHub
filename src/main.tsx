@@ -1,6 +1,7 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import {haptic} from './utils/haptics';
 
 // Lock viewport scale against iOS Safari pinch-to-zoom, gesture zoom, and Ctrl+wheel zoom
 if (typeof document !== 'undefined') {
@@ -32,8 +33,10 @@ if (typeof document !== 'undefined') {
     {passive: false}
   );
 
-  // Compensate for iOS standalone PWA (black-translucent + viewport-fit=cover) WebKit bug
-  // where `position: fixed; inset: 0` stops ~env(safe-area-inset-top) (~59px) short of the physical bottom.
+  haptic.warmup();
+
+  // Synchronously validate/calibrate the Frame-0 CSS `--ios-viewport-bottom-fix`
+  // before first React render so there is zero taskbar jump on cold launch.
   const syncIOSStandaloneViewportFix = () => {
     if (typeof window === 'undefined' || !document.body) return;
 
@@ -45,7 +48,7 @@ if (typeof document !== 'undefined') {
       (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
 
     if (!isStandalone || !isIOS) {
-      document.documentElement.style.setProperty('--ios-viewport-bottom-fix', '0px');
+      document.documentElement.style.removeProperty('--ios-viewport-bottom-fix');
       return;
     }
 
@@ -59,33 +62,36 @@ if (typeof document !== 'undefined') {
 
     // Do not apply in iPad Split View / Slide Over where viewport does not span screen width
     if (Math.abs(window.innerWidth - physicalWidth) > 4) {
-      document.documentElement.style.setProperty('--ios-viewport-bottom-fix', '0px');
+      document.documentElement.style.removeProperty('--ios-viewport-bottom-fix');
       return;
     }
 
     const probe = document.createElement('div');
     probe.style.cssText =
-      'position:fixed;inset:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;z-index:-1;';
+      'position:fixed;inset:0;box-sizing:border-box;border-top:0px solid transparent;border-top-width:var(--ios-viewport-bottom-fix,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;z-index:-1;';
     document.body.appendChild(probe);
 
     const rect = probe.getBoundingClientRect();
     const styles = window.getComputedStyle(probe);
     const safeTop = parseFloat(styles.paddingTop) || 0;
     const safeBottom = parseFloat(styles.paddingBottom) || 0;
+    const currentFix = parseFloat(styles.borderTopWidth) || 0;
     probe.remove();
 
     if (safeTop <= 16) {
-      document.documentElement.style.setProperty('--ios-viewport-bottom-fix', '0px');
+      document.documentElement.style.removeProperty('--ios-viewport-bottom-fix');
       return;
     }
 
-    const currentFix =
-      parseFloat(document.documentElement.style.getPropertyValue('--ios-viewport-bottom-fix')) || 0;
     const delta = Math.round(physicalHeight - rect.height);
-    const neededFix = currentFix + delta;
+    const neededFix = Math.round(currentFix + delta);
     const maxBugShortfall = Math.round(safeTop + safeBottom + 16);
 
-    if (neededFix >= 0 && neededFix <= maxBugShortfall) {
+    if (
+      neededFix >= 0 &&
+      neededFix <= maxBugShortfall &&
+      Math.abs(neededFix - currentFix) > 1
+    ) {
       document.documentElement.style.setProperty(
         '--ios-viewport-bottom-fix',
         neededFix > 16 ? `${neededFix}px` : '0px'
@@ -94,12 +100,11 @@ if (typeof document !== 'undefined') {
     // If neededFix > maxBugShortfall, the iOS software keyboard is open; preserve existing value.
   };
 
-  window.requestAnimationFrame(syncIOSStandaloneViewportFix);
-  window.setTimeout(syncIOSStandaloneViewportFix, 150);
+  syncIOSStandaloneViewportFix();
   window.addEventListener('resize', syncIOSStandaloneViewportFix);
   window.addEventListener('pageshow', syncIOSStandaloneViewportFix);
   window.addEventListener('orientationchange', () => {
-    window.setTimeout(syncIOSStandaloneViewportFix, 150);
+    window.setTimeout(syncIOSStandaloneViewportFix, 120);
   });
 }
 

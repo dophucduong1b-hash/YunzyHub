@@ -17,6 +17,7 @@ import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { BrandLogo } from './components/BrandLogo';
 import { CodeEditorModal } from './components/CodeEditorModal';
 import { EditToolModal } from './components/EditToolModal';
+import { HapticTapOverlay } from './components/HapticTapOverlay';
 import { ImportToolModal } from './components/ImportToolModal';
 import { db } from './db/database';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -50,13 +51,30 @@ export const PRIMARY_NAV_ITEMS: Array<{
 
 const DOCK_SPRING = {
   type: 'spring' as const,
-  stiffness: 480,
-  damping: 36,
-  mass: 0.72,
+  stiffness: 520,
+  damping: 34,
+  mass: 0.68,
+};
+
+const PAGE_SPRING = {
+  type: 'spring' as const,
+  stiffness: 520,
+  damping: 38,
+  mass: 0.62,
+};
+
+const NAV_ORDER: Record<NavSection, number> = {
+  dashboard: 0,
+  library: 1,
+  favorites: 1,
+  workspace: 2,
+  search: 3,
+  settings: 4,
 };
 
 export default function App() {
   const [activeSection, setActiveSection] = useState<NavSection>('dashboard');
+  const [navDirection, setNavDirection] = useState<1 | -1>(1);
   const [lastBrowseSection, setLastBrowseSection] =
     useState<NavSection>('dashboard');
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -103,6 +121,15 @@ export default function App() {
     'activeTabId',
     DEFAULT_PREFERENCES.activeTabId
   );
+  const hapticsEnabled = parsePreferenceValue<boolean>(
+    preferences,
+    'hapticsEnabled',
+    DEFAULT_PREFERENCES.hapticsEnabled ?? true
+  );
+
+  useEffect(() => {
+    haptic.setEnabled(hapticsEnabled);
+  }, [hapticsEnabled]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -140,6 +167,7 @@ export default function App() {
     }
 
     if (section !== activeSection) {
+      setNavDirection(NAV_ORDER[section] >= NAV_ORDER[activeSection] ? 1 : -1);
       haptic.selection();
     }
     if (section !== 'workspace') {
@@ -317,13 +345,12 @@ export default function App() {
             ) : (
               <>
                 {!isWorkspaceActive && (
-                  <AnimatePresence mode="wait" initial={false}>
+                  <AnimatePresence initial={false}>
                     <motion.div
                       key={activeSection}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                      initial={{ opacity: 0, x: navDirection * 14, scale: 0.994 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      transition={PAGE_SPRING}
                     >
                       {activeSection === 'dashboard' && (
                         <DashboardPage
@@ -387,6 +414,12 @@ export default function App() {
                             haptic.selection();
                             toolRepository.setPreference('theme', nextTheme);
                           }}
+                          hapticsEnabled={hapticsEnabled}
+                          onHapticsEnabledChange={(enabled) => {
+                            haptic.setEnabled(enabled);
+                            if (enabled) haptic.selection();
+                            toolRepository.setPreference('hapticsEnabled', enabled);
+                          }}
                         />
                       )}
                     </motion.div>
@@ -440,16 +473,16 @@ export default function App() {
         </div>
 
         {/* Pinned iOS Floating Rounded Blur Mobile Dock (anchored inside fixed app-shell so it never drifts up) */}
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           {!hasRunningWorkspaceTool && (
             <motion.nav
               key="mobile-ios-dock"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 24, opacity: 0 }}
+              initial={{ y: 28, opacity: 0, scale: 0.96 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 28, opacity: 0, scale: 0.96 }}
               transition={DOCK_SPRING}
               aria-label="Điều hướng di động"
-              className="lg:hidden absolute ios-dock-bottom left-5 right-5 z-30 mx-auto max-w-[368px] rounded-[28px] border border-black/[0.08] dark:border-white/[0.12] bg-white/82 dark:bg-[#1C1C1E]/85 backdrop-blur-2xl backdrop-saturate-[180%] shadow-[0_8px_30px_rgba(0,0,0,0.10),0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_14px_38px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] p-1.5 grid grid-cols-4 gap-1"
+              className="lg:hidden absolute ios-dock-bottom left-5 right-5 z-30 mx-auto max-w-[368px] rounded-[28px] border border-black/[0.08] dark:border-white/[0.12] bg-white/82 dark:bg-[#1C1C1E]/85 backdrop-blur-2xl backdrop-saturate-[180%] shadow-[0_8px_30px_rgba(0,0,0,0.10),0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_14px_38px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] p-1.5 grid grid-cols-4 gap-1 will-change-transform"
             >
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -475,11 +508,12 @@ export default function App() {
                         : 'text-neutral-500 dark:text-neutral-400 font-medium'
                     }`}
                   >
+                    <HapticTapOverlay />
                     {isActive && (
                       <motion.span
                         layoutId="ios-dock-pill"
                         transition={DOCK_SPRING}
-                        className="absolute inset-0 rounded-[22px] bg-black/[0.07] dark:bg-white/[0.14] -z-10"
+                        className="absolute inset-0 rounded-[22px] bg-black/[0.07] dark:bg-white/[0.14] -z-10 will-change-transform"
                       />
                     )}
                     <motion.span
@@ -488,11 +522,20 @@ export default function App() {
                       className="relative flex items-center justify-center"
                     >
                       <Icon className="w-[19px] h-[19px] stroke-[2]" />
-                      {showWorkspaceCount && (
-                        <span className="absolute -top-1 -right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-[#FF6B35] text-white text-[9px] font-bold leading-[14px] text-center tabular-nums">
-                          {workspaceTabs.length}
-                        </span>
-                      )}
+                      <AnimatePresence>
+                        {showWorkspaceCount && (
+                          <motion.span
+                            key="ws-badge"
+                            initial={{ scale: 0.4, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.4, opacity: 0 }}
+                            transition={DOCK_SPRING}
+                            className="absolute -top-1 -right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-[#FF6B35] text-white text-[9px] font-bold leading-[14px] text-center tabular-nums"
+                          >
+                            {workspaceTabs.length}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </motion.span>
                     <span>{item.label}</span>
                   </motion.button>

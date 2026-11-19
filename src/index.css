@@ -53,6 +53,14 @@
   }
 }
 
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    :root {
+      --ios-viewport-bottom-fix: env(safe-area-inset-top, 0px);
+    }
+  }
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }

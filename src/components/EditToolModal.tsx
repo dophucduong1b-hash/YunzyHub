@@ -18,6 +18,7 @@ import {
 } from '../repositories/toolRepository';
 import type { ToolFileRecord, ToolManifest } from '../types/models';
 import { haptic } from '../utils/haptics';
+import { HapticTapOverlay } from './HapticTapOverlay';
 
 interface EditToolModalProps {
   tool: ToolManifest | null;
@@ -30,9 +31,9 @@ interface EditToolModalProps {
 
 const DRAWER_SPRING = {
   type: 'spring' as const,
-  stiffness: 420,
+  stiffness: 440,
   damping: 38,
-  mass: 0.78,
+  mass: 0.75,
 };
 
 export const EditToolModal: React.FC<EditToolModalProps> = ({
@@ -181,8 +182,9 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
                     type="button"
                     whileTap={{ scale: 0.94 }}
                     onClick={() => onEditCode(tool)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-[#FF6B35]/25 bg-[#FFF1EB] dark:bg-[#FF6B35]/15 text-[#C2410C] dark:text-[#FF8C5A] transition-colors"
+                    className="relative inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-[#FF6B35]/25 bg-[#FFF1EB] dark:bg-[#FF6B35]/15 text-[#C2410C] dark:text-[#FF8C5A] transition-colors"
                   >
+                    <HapticTapOverlay />
                     <Code2 className="w-3.5 h-3.5" />
                     <span>Sửa code</span>
                   </motion.button>
@@ -195,8 +197,9 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
                       onLaunch(tool);
                       onClose();
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
+                    className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
                   >
+                    <HapticTapOverlay />
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Mở</span>
                   </motion.button>
@@ -217,8 +220,9 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
                   whileTap={{ scale: 0.88 }}
                   onClick={onClose}
                   aria-label="Đóng"
-                  className="p-2 rounded-xl text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+                  className="relative p-2 rounded-xl text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
                 >
+                  <HapticTapOverlay />
                   <X className="w-5 h-5" />
                 </motion.button>
               </div>
@@ -455,8 +459,9 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
                     haptic.warning();
                     setConfirmDelete(true);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                  className="relative inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
                 >
+                  <HapticTapOverlay />
                   <Trash2 className="w-4 h-4" />
                   <span>Xóa</span>
                 </motion.button>
@@ -467,8 +472,9 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
                     whileTap={{ scale: 0.94 }}
                     onClick={handleDelete}
                     disabled={saving}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-500 transition-colors"
+                    className="relative px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-500 transition-colors"
                   >
+                    <HapticTapOverlay disabled={saving} />
                     Xác nhận
                   </motion.button>
                   <motion.button
@@ -478,8 +484,9 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
                       haptic.light();
                       setConfirmDelete(false);
                     }}
-                    className="px-2 py-1.5 rounded-lg text-xs text-neutral-600 dark:text-neutral-300"
+                    className="relative px-2 py-1.5 rounded-lg text-xs text-neutral-600 dark:text-neutral-300"
                   >
+                    <HapticTapOverlay />
                     Hủy
                   </motion.button>
                 </div>
@@ -490,8 +497,9 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
                   type="button"
                   whileTap={{ scale: 0.95 }}
                   onClick={onClose}
-                  className="px-3.5 py-2 rounded-xl text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+                  className="relative px-3.5 py-2 rounded-xl text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
                 >
+                  <HapticTapOverlay />
                   Đóng
                 </motion.button>
                 <motion.button

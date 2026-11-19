@@ -29,6 +29,7 @@ import {
   type CodeLanguage,
 } from '../utils/codeSyntax';
 import { haptic } from '../utils/haptics';
+import { HapticTapOverlay } from './HapticTapOverlay';
 import { LightCodeEditor } from './LightCodeEditor';
 
 interface ImportToolModalProps {
@@ -49,9 +50,9 @@ const SUGGESTED_CATEGORIES = [
 
 const SHEET_SPRING = {
   type: 'spring' as const,
-  stiffness: 400,
+  stiffness: 430,
   damping: 36,
-  mass: 0.8,
+  mass: 0.78,
 };
 
 const SEGMENT_SPRING = {
@@ -401,8 +402,9 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                 whileTap={{ scale: 0.88 }}
                 onClick={onClose}
                 aria-label="Đóng"
-                className="p-1.5 rounded-xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+                className="relative p-1.5 rounded-xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
+                <HapticTapOverlay />
                 <X className="w-5 h-5" />
               </motion.button>
             </div>
@@ -420,6 +422,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                 >
+                  <HapticTapOverlay />
                   {mode === 'file' && (
                     <motion.span
                       layoutId="import-mode-pill"
@@ -441,6 +444,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                 >
+                  <HapticTapOverlay />
                   {mode === 'create' && (
                     <motion.span
                       layoutId="import-mode-pill"
@@ -462,6 +466,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                 >
+                  <HapticTapOverlay />
                   {mode === 'url' && (
                     <motion.span
                       layoutId="import-mode-pill"
