@@ -185,8 +185,8 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      {/* Fixed App-Shell prevents iOS Safari viewport scrolling from detaching or floating the bottom dock */}
-      <div className="fixed inset-0 h-[100dvh] w-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-neutral-900 dark:text-neutral-50 selection:bg-[#FF6B35]/20 flex">
+      {/* Full-bleed fixed app-shell (inset-0 without 100dvh override) spans true edge-to-edge on iOS PWA */}
+      <div className="fixed inset-0 w-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-neutral-900 dark:text-neutral-50 selection:bg-[#FF6B35]/20 flex">
         {/* Desktop Sidebar */}
         <aside
           aria-label="Thanh điều hướng chính"
@@ -304,7 +304,7 @@ export default function App() {
             className={
               hasRunningWorkspaceTool
                 ? 'flex-1 flex flex-col min-h-0 w-full p-0 lg:p-4'
-                : 'flex-1 px-4 pt-4 pb-28 sm:p-6 lg:pb-8 max-w-6xl w-full mx-auto ios-top-safe'
+                : 'flex-1 px-4 pb-28 sm:px-6 lg:pb-8 max-w-6xl w-full mx-auto ios-page-top'
             }
           >
             {!dbInitialized ? (

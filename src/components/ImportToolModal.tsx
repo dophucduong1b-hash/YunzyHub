@@ -366,7 +366,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 backdrop-blur-xs sm:p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 backdrop-blur-xs pt-[calc(env(safe-area-inset-top,0px)+0.85rem)] sm:p-4 overflow-hidden"
           role="dialog"
           aria-modal="true"
           aria-labelledby="import-modal-title"
@@ -380,19 +380,19 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
             transition={SHEET_SPRING}
             className={`w-full ${
               isWideModal ? 'max-w-3xl' : 'max-w-xl'
-            } rounded-t-[28px] sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#161618] shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom,0px)] sm:pb-0 transition-[max-width] duration-200`}
+            } max-h-full sm:max-h-[90dvh] flex flex-col rounded-t-[28px] sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#161618] shadow-2xl overflow-hidden transition-[max-width] duration-200`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Subtle iOS Grab Handle on Mobile */}
-            <div className="sm:hidden pt-2.5 flex justify-center">
+            <div className="sm:hidden pt-2.5 pb-0.5 flex justify-center shrink-0">
               <div className="w-9 h-1 rounded-full bg-neutral-300 dark:bg-neutral-700" />
             </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 sm:py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+            {/* Pinned Header */}
+            <div className="shrink-0 flex items-center justify-between px-4 sm:px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.08]">
               <h2
                 id="import-modal-title"
-                className="text-base font-semibold tracking-tight text-neutral-950 dark:text-white"
+                className="text-[15px] sm:text-base font-semibold tracking-tight text-neutral-950 dark:text-white"
               >
                 {mode === 'create' ? 'Tạo mới bằng mã nguồn' : 'Thêm công cụ'}
               </h2>
@@ -401,20 +401,20 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                 whileTap={{ scale: 0.88 }}
                 onClick={onClose}
                 aria-label="Đóng"
-                className="p-2 rounded-xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+                className="p-1.5 rounded-xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               >
                 <X className="w-5 h-5" />
               </motion.button>
             </div>
 
-            {/* 3-Tab Mode Switcher: Tệp / Tạo / URL */}
-            <div className="px-5 pt-4">
+            {/* Pinned 3-Tab Mode Switcher: Tệp / Tạo / URL */}
+            <div className="shrink-0 px-4 sm:px-5 pt-3 pb-1">
               <div className="grid grid-cols-3 p-1 rounded-xl bg-black/[0.05] dark:bg-white/[0.07]">
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.96 }}
                   onClick={() => resetState('file')}
-                  className={`relative inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  className={`relative inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                     mode === 'file'
                       ? 'text-neutral-950 dark:text-white font-semibold'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
@@ -435,7 +435,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                   type="button"
                   whileTap={{ scale: 0.96 }}
                   onClick={() => resetState('create')}
-                  className={`relative inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  className={`relative inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                     mode === 'create'
                       ? 'text-neutral-950 dark:text-white font-semibold'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
@@ -456,7 +456,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                   type="button"
                   whileTap={{ scale: 0.96 }}
                   onClick={() => resetState('url')}
-                  className={`relative inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  className={`relative inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                     mode === 'url'
                       ? 'text-neutral-950 dark:text-white font-semibold'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
@@ -475,14 +475,16 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
               </div>
             </div>
 
+            {/* Scrollable Form Body */}
             <form
+              id="import-tool-form"
               onSubmit={handleSubmit}
-              className="p-5 space-y-4 max-h-[78dvh] overflow-y-auto"
+              className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 sm:px-5 py-3.5 space-y-3.5"
             >
               {error && (
                 <div
                   role="alert"
-                  className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-300"
+                  className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-300"
                 >
                   <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
                   <span>{error}</span>
@@ -645,7 +647,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                       )}
 
                       {previewTab === 'sandbox' && (
-                        <div className="h-56 rounded-xl border border-black/[0.07] dark:border-white/[0.09] overflow-hidden bg-white dark:bg-neutral-950">
+                        <div className="h-52 rounded-xl border border-black/[0.07] dark:border-white/[0.09] overflow-hidden bg-white dark:bg-neutral-950">
                           {compiledPreview && 'srcDoc' in compiledPreview ? (
                             <iframe
                               title="Xem trước công cụ trong Sandbox"
@@ -666,68 +668,47 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                 </>
               ) : mode === 'create' ? (
                 <div className="space-y-3">
-                  {/* Language Selector Chips with distinct per-language accent colors */}
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                      {CODE_LANGUAGES.map((lang) => {
-                        const isSelected = codeLang === lang.id;
-                        return (
-                          <motion.button
-                            key={lang.id}
-                            type="button"
-                            whileTap={{ scale: 0.94 }}
-                            onClick={() => handleSelectLanguage(lang.id)}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all whitespace-nowrap ${
-                              isSelected
-                                ? 'border-transparent shadow-2xs font-semibold'
-                                : 'border-black/[0.07] dark:border-white/[0.1] bg-[#FAF9F6] dark:bg-[#1F1F23] text-neutral-600 dark:text-neutral-300 hover:border-black/[0.18]'
-                            }`}
-                            style={
-                              isSelected
-                                ? {
-                                    backgroundColor: lang.badgeBg,
-                                    color: lang.badgeText,
-                                    boxShadow: `inset 0 0 0 1px ${lang.accentColor}44`,
-                                  }
-                                : undefined
-                            }
-                          >
-                            <span
-                              className="w-2 h-2 rounded-full shrink-0"
-                              style={{ backgroundColor: lang.accentColor }}
-                            />
-                            <span>{lang.label}</span>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-
-                    {codeLang === 'html' && (
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.94 }}
-                        onClick={() => {
-                          haptic.selection();
-                          setShowCreatePreview((prev) => !prev);
-                        }}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                          showCreatePreview
-                            ? 'border-[#FF6B35]/30 bg-[#FFF1EB] text-[#C2410C]'
-                            : 'border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1F1F23] text-neutral-700 dark:text-neutral-200'
-                        }`}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>{showCreatePreview ? 'Sửa code' : 'Xem thử'}</span>
-                      </motion.button>
-                    )}
+                  {/* Single Clean Horizontal Language Selector Row */}
+                  <div className="-mx-4 sm:-mx-5 px-4 sm:px-5 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                    {CODE_LANGUAGES.map((lang) => {
+                      const isSelected = codeLang === lang.id;
+                      return (
+                        <motion.button
+                          key={lang.id}
+                          type="button"
+                          whileTap={{ scale: 0.94 }}
+                          onClick={() => handleSelectLanguage(lang.id)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all whitespace-nowrap shrink-0 ${
+                            isSelected
+                              ? 'border-transparent shadow-2xs font-semibold'
+                              : 'border-black/[0.07] dark:border-white/[0.1] bg-[#FAF9F6] dark:bg-[#1F1F23] text-neutral-600 dark:text-neutral-300 hover:border-black/[0.18]'
+                          }`}
+                          style={
+                            isSelected
+                              ? {
+                                  backgroundColor: lang.badgeBg,
+                                  color: lang.badgeText,
+                                  boxShadow: `inset 0 0 0 1px ${lang.accentColor}44`,
+                                }
+                              : undefined
+                          }
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: lang.accentColor }}
+                          />
+                          <span>{lang.label}</span>
+                        </motion.button>
+                      );
+                    })}
                   </div>
 
-                  {/* Filename Input */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
+                  {/* Compact Side-by-Side Name + Filename Row on All Screen Sizes */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="min-w-0">
                       <label
                         htmlFor="create-tool-name"
-                        className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1"
+                        className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1"
                       >
                         Tên công cụ
                       </label>
@@ -737,14 +718,14 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Ví dụ: Bộ đếm nhanh"
-                        className="w-full rounded-xl border border-black/[0.09] dark:border-white/[0.11] bg-[#F5F5F7] dark:bg-[#1F1F23] px-3.5 py-2 text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40"
+                        placeholder="Bộ đếm nhanh"
+                        className="w-full rounded-xl border border-black/[0.09] dark:border-white/[0.11] bg-[#F5F5F7] dark:bg-[#1F1F23] px-3 py-2 text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40"
                       />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <label
                         htmlFor="create-file-name"
-                        className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1"
+                        className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1"
                       >
                         Tên tệp
                       </label>
@@ -755,36 +736,71 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                         value={codeFileName}
                         onChange={(e) => setCodeFileName(e.target.value)}
                         placeholder="index.html"
-                        className="w-full rounded-xl border border-black/[0.09] dark:border-white/[0.11] bg-[#F5F5F7] dark:bg-[#1F1F23] px-3.5 py-2 text-sm font-mono text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40"
+                        className="w-full rounded-xl border border-black/[0.09] dark:border-white/[0.11] bg-[#F5F5F7] dark:bg-[#1F1F23] px-3 py-2 text-sm font-mono text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40"
                       />
                     </div>
                   </div>
 
-                  {/* Bright Light-Mode Syntax-Highlighted Code Editor or Live Sandbox Preview */}
+                  {/* Bright Light-Mode Code Editor or Live Sandbox Preview with Integrated Toggle */}
                   {showCreatePreview && codeLang === 'html' ? (
-                    <div className="h-[320px] rounded-2xl border border-[#E4E1D9] overflow-hidden bg-white">
-                      {compiledCreatePreview &&
-                      'srcDoc' in compiledCreatePreview ? (
-                        <iframe
-                          title="Xem trước mã HTML trong Sandbox"
-                          sandbox="allow-scripts allow-downloads"
-                          referrerPolicy="no-referrer"
-                          srcDoc={compiledCreatePreview.srcDoc}
-                          className="w-full h-full border-0 block"
-                        />
-                      ) : (
-                        <div className="p-4 text-xs text-rose-600">
-                          Không thể xem trước mã HTML.
-                        </div>
-                      )}
+                    <div className="flex flex-col h-[250px] sm:h-[320px] rounded-2xl border border-[#E4E1D9] overflow-hidden bg-white">
+                      <div className="h-9 px-3 border-b border-[#ECEAE3] bg-[#FAF9F6] flex items-center justify-between shrink-0">
+                        <span className="text-[11px] font-semibold text-[#C2410C]">
+                          Xem trước Sandbox
+                        </span>
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.94 }}
+                          onClick={() => {
+                            haptic.selection();
+                            setShowCreatePreview(false);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-[#17130F] text-[#F3EEE3]"
+                        >
+                          <Code2 className="w-3 h-3" />
+                          <span>Sửa code</span>
+                        </motion.button>
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        {compiledCreatePreview &&
+                        'srcDoc' in compiledCreatePreview ? (
+                          <iframe
+                            title="Xem trước mã HTML trong Sandbox"
+                            sandbox="allow-scripts allow-downloads"
+                            referrerPolicy="no-referrer"
+                            srcDoc={compiledCreatePreview.srcDoc}
+                            className="w-full h-full border-0 block"
+                          />
+                        ) : (
+                          <div className="p-4 text-xs text-rose-600">
+                            Không thể xem trước mã HTML.
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <LightCodeEditor
                       value={codeContent}
                       onChange={setCodeContent}
                       language={codeLang}
-                      minHeightClass="h-[320px]"
+                      minHeightClass="h-[250px] sm:h-[320px]"
                       ariaLabel="Soạn mã nguồn tạo công cụ mới"
+                      headerAction={
+                        codeLang === 'html' ? (
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.94 }}
+                            onClick={() => {
+                              haptic.selection();
+                              setShowCreatePreview(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-white border border-[#E4E1D9] text-[#44403C] hover:text-[#17130F]"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>Xem thử</span>
+                          </motion.button>
+                        ) : undefined
+                      }
                     />
                   )}
                 </div>
@@ -797,20 +813,18 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                     >
                       URL
                     </label>
-                    <div className="flex gap-2">
-                      <input
-                        id="import-url-input"
-                        type="url"
-                        required
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                        onBlur={() => {
-                          if (urlInput.trim() && !name.trim()) handleUrlInspect();
-                        }}
-                        placeholder="https://example.com"
-                        className="flex-1 rounded-xl border border-black/[0.09] dark:border-white/[0.11] bg-[#F5F5F7] dark:bg-[#1F1F23] px-3.5 py-2.5 text-sm font-mono text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40"
-                      />
-                    </div>
+                    <input
+                      id="import-url-input"
+                      type="url"
+                      required
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      onBlur={() => {
+                        if (urlInput.trim() && !name.trim()) handleUrlInspect();
+                      }}
+                      placeholder="https://example.com"
+                      className="w-full rounded-xl border border-black/[0.09] dark:border-white/[0.11] bg-[#F5F5F7] dark:bg-[#1F1F23] px-3.5 py-2.5 text-sm font-mono text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40"
+                    />
                   </div>
 
                   <div>
@@ -980,31 +994,32 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                   )}
                 </AnimatePresence>
               </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-black/[0.06] dark:border-white/[0.08]">
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.95 }}
-                  onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
-                >
-                  Hủy
-                </motion.button>
-                <motion.button
-                  type="submit"
-                  whileTap={{ scale: 0.95 }}
-                  disabled={submitting || (mode === 'file' && !inspection)}
-                  className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 disabled:opacity-40 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
-                >
-                  {submitting
-                    ? 'Đang lưu...'
-                    : mode === 'create'
-                      ? 'Tạo & Lưu'
-                      : 'Lưu'}
-                </motion.button>
-              </div>
             </form>
+
+            {/* Always-Visible Pinned Footer */}
+            <div className="shrink-0 px-4 sm:px-5 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.85rem)] sm:pb-3.5 border-t border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] flex items-center justify-end gap-2.5">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.95 }}
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              >
+                Hủy
+              </motion.button>
+              <motion.button
+                type="submit"
+                form="import-tool-form"
+                whileTap={{ scale: 0.95 }}
+                disabled={submitting || (mode === 'file' && !inspection)}
+                className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 disabled:opacity-40 text-[#F3EEE3] dark:text-[#17130F] transition-colors"
+              >
+                {submitting
+                  ? 'Đang lưu...'
+                  : mode === 'create'
+                    ? 'Tạo & Lưu'
+                    : 'Lưu'}
+              </motion.button>
+            </div>
           </motion.div>
         </motion.div>
       )}

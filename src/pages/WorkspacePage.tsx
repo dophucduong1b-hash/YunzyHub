@@ -144,7 +144,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-40 h-[100dvh] w-full flex flex-col bg-white dark:bg-[#0A0A0C] overflow-hidden lg:static lg:z-auto lg:h-[calc(100vh-2rem)] lg:rounded-2xl lg:border lg:border-black/[0.07] lg:dark:border-white/[0.08] lg:bg-white lg:dark:bg-[#161618] lg:shadow-xs">
+    <div className="fixed inset-0 z-40 w-full flex flex-col bg-white dark:bg-[#0A0A0C] overflow-hidden lg:static lg:z-auto lg:h-[calc(100vh-2rem)] lg:rounded-2xl lg:border lg:border-black/[0.07] lg:dark:border-white/[0.08] lg:bg-white lg:dark:bg-[#161618] lg:shadow-xs">
       {/* Slim Single-Row Mobile & Desktop Top Bar (respects Dynamic Island safe area) */}
       <div className="ios-top-safe shrink-0 border-b border-black/[0.07] dark:border-white/[0.08] bg-white/95 dark:bg-[#111113]/95 backdrop-blur-xl">
         <div className="h-11 flex items-center justify-between gap-1.5 px-1.5 sm:px-2.5">

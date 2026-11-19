@@ -693,7 +693,8 @@ async function runAllTests() {
     assert.ok(hapticsSource.includes('export const haptic'), 'Must provide tactile haptics utility');
 
     const appSource = fs.readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf-8');
-    assert.ok(appSource.includes('fixed inset-0 h-[100dvh]'), 'App shell must be fixed full-viewport to stop iOS dock drifting');
+    assert.ok(appSource.includes('fixed inset-0 w-full'), 'App shell must be full-bleed fixed inset-0 to prevent iOS dock drifting or bottom gap');
+    assert.ok(!appSource.includes('fixed inset-0 h-[100dvh]'), 'App shell must not override fixed inset-0 with h-[100dvh] on iOS standalone PWA');
     assert.ok(appSource.includes('searchInputRef'), 'App must wire double-tap Search icon to focus keyboard input');
     assert.ok(appSource.includes('CodeEditorModal'), 'App must wire in-app direct code editing modal');
     assert.ok(appSource.includes('rounded-[28px]'), 'Mobile taskbar must have iOS rounded corners');
@@ -788,7 +789,7 @@ async function runAllTests() {
     assert.ok(searchHtml.includes('type="search"'), 'SearchPage must render single search input');
     assert.ok(!searchHtml.includes('Thẻ phổ biến'), 'SearchPage must hide tag clouds');
 
-    // Workspace: full-screen mobile container (fixed inset-0 h-[100dvh]) + back button + tablist
+    // Workspace: full-screen mobile container (fixed inset-0 edge-to-edge) + back button + tablist
     const wsHtml = renderToStaticMarkup(
       React.createElement(WorkspacePage, {
         tools,
@@ -802,8 +803,8 @@ async function runAllTests() {
         onNavigate: () => {},
       })
     );
-    assert.ok(wsHtml.includes('fixed inset-0'), 'Workspace must fill full screen on mobile');
-    assert.ok(wsHtml.includes('h-[100dvh]'), 'Workspace must use 100dvh height on mobile');
+    assert.ok(wsHtml.includes('fixed inset-0'), 'Workspace must fill full screen edge-to-edge on mobile');
+    assert.ok(!wsHtml.includes('h-[100dvh]'), 'Workspace must not override fixed inset-0 with h-[100dvh] on iOS standalone PWA');
     assert.ok(wsHtml.includes('aria-label="Quay lại"'), 'Workspace must provide back button');
     assert.ok(wsHtml.includes('role="tablist"'), 'Workspace must render multi-tab list');
     assert.ok(wsHtml.includes('role="tabpanel"'), 'Workspace must render tabpanels');
