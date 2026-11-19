@@ -1,0 +1,6 @@
+{
+  "name": "YunzyHub",
+  "description": "Trung tâm quản lý và chạy công cụ cá nhân Local-First PWA dành cho tệp HTML, gói ZIP độc lập và ứng dụng web bên ngoài với thiết kế Apple Liquid Glass.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
