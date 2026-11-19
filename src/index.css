@@ -5,9 +5,17 @@
   :root {
     --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --ios-viewport-bottom-fix: 0px;
   }
 
-  html, body, #root {
+  html {
+    height: calc(100% + var(--ios-viewport-bottom-fix, 0px));
+    width: 100%;
+    overflow: hidden;
+    background-color: #F5F5F7;
+  }
+
+  body, #root {
     height: 100%;
     width: 100%;
     overflow: hidden;
@@ -56,6 +64,11 @@
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Compensates for iOS standalone PWA black-translucent WebKit bug where fixed inset-0 ends ~safe-area-inset-top short of screen bottom */
+.ios-shell-full {
+  bottom: calc(0px - var(--ios-viewport-bottom-fix, 0px));
 }
 
 /* Balanced floating dock pinned inside full-bleed fixed app-shell right above iPhone Home Indicator */

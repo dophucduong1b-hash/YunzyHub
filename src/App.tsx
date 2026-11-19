@@ -186,7 +186,7 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       {/* Full-bleed fixed app-shell (inset-0 without 100dvh override) spans true edge-to-edge on iOS PWA */}
-      <div className="fixed inset-0 w-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-neutral-900 dark:text-neutral-50 selection:bg-[#FF6B35]/20 flex">
+      <div className="fixed inset-0 w-full ios-shell-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-neutral-900 dark:text-neutral-50 selection:bg-[#FF6B35]/20 flex">
         {/* Desktop Sidebar */}
         <aside
           aria-label="Thanh điều hướng chính"
