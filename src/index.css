@@ -66,11 +66,6 @@
   display: none;
 }
 
-/* Compensates for iOS standalone PWA black-translucent WebKit bug where fixed inset-0 ends ~safe-area-inset-top short of screen bottom */
-.ios-shell-full {
-  bottom: calc(0px - var(--ios-viewport-bottom-fix, 0px));
-}
-
 /* Balanced floating dock pinned inside full-bleed fixed app-shell right above iPhone Home Indicator */
 .ios-dock-bottom {
   bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) - 0.5rem));

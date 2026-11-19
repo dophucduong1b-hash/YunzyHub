@@ -79,15 +79,19 @@ if (typeof document !== 'undefined') {
       return;
     }
 
-    const shortfall = Math.round(physicalHeight - rect.height);
+    const currentFix =
+      parseFloat(document.documentElement.style.getPropertyValue('--ios-viewport-bottom-fix')) || 0;
+    const delta = Math.round(physicalHeight - rect.height);
+    const neededFix = currentFix + delta;
     const maxBugShortfall = Math.round(safeTop + safeBottom + 16);
 
-    if (shortfall > 16 && shortfall <= maxBugShortfall) {
-      document.documentElement.style.setProperty('--ios-viewport-bottom-fix', `${shortfall}px`);
-    } else if (shortfall <= 16) {
-      document.documentElement.style.setProperty('--ios-viewport-bottom-fix', '0px');
+    if (neededFix >= 0 && neededFix <= maxBugShortfall) {
+      document.documentElement.style.setProperty(
+        '--ios-viewport-bottom-fix',
+        neededFix > 16 ? `${neededFix}px` : '0px'
+      );
     }
-    // If shortfall > maxBugShortfall, the iOS software keyboard is open; preserve existing value.
+    // If neededFix > maxBugShortfall, the iOS software keyboard is open; preserve existing value.
   };
 
   window.requestAnimationFrame(syncIOSStandaloneViewportFix);
