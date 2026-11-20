@@ -29,11 +29,9 @@ interface EditToolModalProps {
   onEditCode?: (tool: ToolManifest) => void;
 }
 
-const DRAWER_SPRING = {
-  type: 'spring' as const,
-  stiffness: 440,
-  damping: 38,
-  mass: 0.75,
+const DRAWER_TRANSITION = {
+  duration: 0.24,
+  ease: [0.22, 1, 0.36, 1] as const,
 };
 
 export const EditToolModal: React.FC<EditToolModalProps> = ({
@@ -145,7 +143,7 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: 0.2 }}
           className="fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
@@ -157,7 +155,7 @@ export const EditToolModal: React.FC<EditToolModalProps> = ({
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={DRAWER_SPRING}
+            transition={DRAWER_TRANSITION}
             className="w-full max-w-md h-full border-l border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#161618] shadow-2xl flex flex-col justify-between overflow-hidden ios-top-safe"
             onClick={(e) => e.stopPropagation()}
           >

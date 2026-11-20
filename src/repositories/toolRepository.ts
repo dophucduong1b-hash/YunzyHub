@@ -71,6 +71,9 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   activeTabId: null,
   seededSampleTools: false,
   hapticsEnabled: true,
+  reducedMotion: false,
+  swipeBackHome: true,
+  openAfterImportDefault: true,
 };
 
 export const LEGACY_SAMPLE_TOOL_IDS = [
@@ -1072,6 +1075,37 @@ export const toolRepository = {
       importedToolsCount: validatedTools.length,
       importedFilesCount: validatedFiles.length,
     };
+  },
+
+  /**
+   * Clears isolated localStorage data for all tools while keeping installed tools intact.
+   */
+  async clearAllToolStorage(): Promise<number> {
+    return db.transaction('rw', db.toolStorage, async () => {
+      const count = await db.toolStorage.count();
+      await db.toolStorage.clear();
+      return count;
+    });
+  },
+
+  /**
+   * Clears recent launch history records and resets lastOpenedAt timestamps without deleting tools.
+   */
+  async clearHistory(): Promise<number> {
+    return db.transaction('rw', [db.history, db.tools], async () => {
+      const count = await db.history.count();
+      await db.history.clear();
+      const allTools = await db.tools.toArray();
+      if (allTools.length > 0) {
+        await db.tools.bulkPut(
+          allTools.map((t) => ({
+            ...t,
+            lastOpenedAt: null,
+          }))
+        );
+      }
+      return count;
+    });
   },
 
   /**

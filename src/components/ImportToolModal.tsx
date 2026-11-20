@@ -35,6 +35,7 @@ import { LightCodeEditor } from './LightCodeEditor';
 interface ImportToolModalProps {
   isOpen: boolean;
   initialMode?: 'file' | 'create' | 'url';
+  defaultOpenAfterImport?: boolean;
   onClose: () => void;
   onSuccess: (createdTool: ToolManifest, openImmediately: boolean) => void;
 }
@@ -48,27 +49,30 @@ const SUGGESTED_CATEGORIES = [
   'Khác',
 ];
 
-const SHEET_SPRING = {
-  type: 'spring' as const,
-  stiffness: 430,
-  damping: 36,
-  mass: 0.78,
-};
+const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 
 const SEGMENT_SPRING = {
   type: 'spring' as const,
-  stiffness: 500,
-  damping: 36,
-  mass: 0.72,
+  stiffness: 420,
+  damping: 40,
+  mass: 0.8,
+};
+
+const MODE_ORDER: Record<'file' | 'create' | 'url', number> = {
+  file: 0,
+  create: 1,
+  url: 2,
 };
 
 export const ImportToolModal: React.FC<ImportToolModalProps> = ({
   isOpen,
   initialMode = 'file',
+  defaultOpenAfterImport = true,
   onClose,
   onSuccess,
 }) => {
   const [mode, setMode] = useState<'file' | 'create' | 'url'>(initialMode);
+  const [modeDirection, setModeDirection] = useState<1 | -1>(1);
   const [isDragging, setIsDragging] = useState(false);
   const [inspecting, setInspecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +106,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
   const [embedMode, setEmbedMode] = useState<'external' | 'sandbox'>('external');
 
   const [submitting, setSubmitting] = useState(false);
-  const [openAfterImport, setOpenAfterImport] = useState(true);
+  const [openAfterImport, setOpenAfterImport] = useState(defaultOpenAfterImport);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -110,6 +114,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
     if (isOpen) {
       setMode(initialMode);
       setError(null);
+      setOpenAfterImport(defaultOpenAfterImport);
       if (initialMode === 'create') {
         const meta = getLanguageMeta('html');
         setCodeLang('html');
@@ -118,12 +123,12 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
         setShowCreatePreview(false);
       }
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen, initialMode, defaultOpenAfterImport]);
 
   const resetState = (nextMode: 'file' | 'create' | 'url') => {
-    if (nextMode !== mode) {
-      haptic.selection();
-    }
+    if (nextMode === mode) return;
+    setModeDirection(MODE_ORDER[nextMode] >= MODE_ORDER[mode] ? 1 : -1);
+    haptic.selection();
     setMode(nextMode);
     setError(null);
     setInspection(null);
@@ -356,8 +361,6 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
     }
   };
 
-  const isWideModal = mode === 'create';
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -366,7 +369,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: 0.2 }}
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 backdrop-blur-xs pt-[calc(env(safe-area-inset-top,0px)+0.85rem)] sm:p-4 overflow-hidden"
           role="dialog"
           aria-modal="true"
@@ -375,13 +378,11 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
         >
           <motion.div
             key="import-modal-sheet"
-            initial={{ y: 40, opacity: 0, scale: 0.98 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 36, opacity: 0, scale: 0.98 }}
-            transition={SHEET_SPRING}
-            className={`w-full ${
-              isWideModal ? 'max-w-3xl' : 'max-w-xl'
-            } max-h-full sm:max-h-[90dvh] flex flex-col rounded-t-[28px] sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#161618] shadow-2xl overflow-hidden transition-[max-width] duration-200`}
+            initial={{ y: 26, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 22, opacity: 0 }}
+            transition={{ duration: 0.24, ease: APPLE_EASE }}
+            className="w-full max-w-2xl h-[82%] max-h-[660px] sm:h-[600px] sm:max-h-[88vh] flex flex-col rounded-t-[28px] sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#161618] shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Subtle iOS Grab Handle on Mobile */}
@@ -414,7 +415,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
               <div className="grid grid-cols-3 p-1 rounded-xl bg-black/[0.05] dark:bg-white/[0.07]">
                 <motion.button
                   type="button"
-                  whileTap={{ scale: 0.96 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => resetState('file')}
                   className={`relative inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                     mode === 'file'
@@ -436,7 +437,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
 
                 <motion.button
                   type="button"
-                  whileTap={{ scale: 0.96 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => resetState('create')}
                   className={`relative inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                     mode === 'create'
@@ -458,7 +459,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
 
                 <motion.button
                   type="button"
-                  whileTap={{ scale: 0.96 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => resetState('url')}
                   className={`relative inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
                     mode === 'url'
@@ -496,6 +497,13 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                 </div>
               )}
 
+              <motion.div
+                key={mode}
+                initial={{ opacity: 0, x: modeDirection * 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2, ease: APPLE_EASE }}
+                className="space-y-3.5"
+              >
               {mode === 'file' ? (
                 <>
                   <div
@@ -678,12 +686,11 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                     {CODE_LANGUAGES.map((lang) => {
                       const isSelected = codeLang === lang.id;
                       return (
-                        <motion.button
+                        <button
                           key={lang.id}
                           type="button"
-                          whileTap={{ scale: 0.94 }}
                           onClick={() => handleSelectLanguage(lang.id)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all whitespace-nowrap shrink-0 ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium border active:scale-[0.97] transition-colors whitespace-nowrap shrink-0 ${
                             isSelected
                               ? 'border-transparent shadow-2xs font-semibold'
                               : 'border-black/[0.07] dark:border-white/[0.1] bg-[#FAF9F6] dark:bg-[#1F1F23] text-neutral-600 dark:text-neutral-300 hover:border-black/[0.18]'
@@ -703,7 +710,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                             style={{ backgroundColor: lang.accentColor }}
                           />
                           <span>{lang.label}</span>
-                        </motion.button>
+                        </button>
                       );
                     })}
                   </div>
@@ -874,6 +881,7 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                   />
                 </div>
               )}
+              </motion.div>
 
               {/* Collapsible Optional Fields */}
               <div>
@@ -897,10 +905,10 @@ export const ImportToolModal: React.FC<ImportToolModalProps> = ({
                   {showMoreOptions && (
                     <motion.div
                       key="import-more-options"
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.15 }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.16, ease: APPLE_EASE }}
                       className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-black/[0.06] dark:border-white/[0.08]"
                     >
                       <div className="sm:col-span-2">

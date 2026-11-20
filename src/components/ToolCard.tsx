@@ -75,12 +75,11 @@ export const ToolCard: React.FC<ToolCardProps> = ({
 
   return (
     <motion.article
-      layout="position"
       role="button"
       tabIndex={0}
       aria-label={`Mở ${tool.name}`}
-      whileTap={{ scale: 0.955 }}
-      transition={{ type: 'spring', stiffness: 560, damping: 30, mass: 0.6 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
       onClick={() => onLaunch(tool)}
       onKeyDown={handleKeyDown}
       className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 sm:p-4 cursor-pointer select-none transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B35] ${
@@ -91,7 +90,7 @@ export const ToolCard: React.FC<ToolCardProps> = ({
     >
       <HapticTapOverlay zClass="z-0" />
       <div className="flex items-start justify-between gap-2">
-        <div className="pointer-events-none w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] bg-neutral-100 dark:bg-white/[0.07] flex items-center justify-center transition-transform duration-150 group-hover:scale-[1.04]">
+        <div className="pointer-events-none w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] bg-neutral-100 dark:bg-white/[0.07] flex items-center justify-center">
           {renderToolTypeGlyph(tool)}
         </div>
 
@@ -102,7 +101,7 @@ export const ToolCard: React.FC<ToolCardProps> = ({
         >
           <motion.button
             type="button"
-            whileTap={{ scale: 0.82 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => onToggleFavorite(tool)}
             aria-label={
               tool.favorite ? `Bỏ yêu thích ${tool.name}` : `Yêu thích ${tool.name}`
@@ -115,15 +114,11 @@ export const ToolCard: React.FC<ToolCardProps> = ({
             }`}
           >
             <HapticTapOverlay />
-            <motion.span
-              key={tool.favorite ? 'fav' : 'unfav'}
-              initial={{ scale: 0.7 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 620, damping: 18 }}
-              className="block"
-            >
-              <Star className={`w-4 h-4 ${tool.favorite ? 'fill-current' : ''}`} />
-            </motion.span>
+            <Star
+              className={`w-4 h-4 transition-transform duration-150 ${
+                tool.favorite ? 'fill-current' : ''
+              }`}
+            />
           </motion.button>
 
           <motion.button

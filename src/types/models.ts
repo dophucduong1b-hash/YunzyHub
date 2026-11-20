@@ -71,6 +71,9 @@ export interface AppPreferences {
   activeTabId: string | null;
   seededSampleTools: boolean;
   hapticsEnabled?: boolean;
+  reducedMotion?: boolean;
+  swipeBackHome?: boolean;
+  openAfterImportDefault?: boolean;
 }
 
 export interface ToolStorageRecord {

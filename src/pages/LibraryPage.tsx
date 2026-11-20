@@ -36,9 +36,9 @@ type SortKey = 'updated' | 'recent' | 'name';
 
 const SEGMENT_SPRING = {
   type: 'spring' as const,
-  stiffness: 500,
-  damping: 36,
-  mass: 0.72,
+  stiffness: 420,
+  damping: 40,
+  mass: 0.8,
 };
 
 export const LibraryPage: React.FC<LibraryPageProps> = ({
@@ -194,10 +194,10 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
         {showFilters && (
           <motion.div
             key="library-filters"
-            initial={{ opacity: 0, y: -6 }}
+            initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
           >
             <div className="flex flex-wrap items-center gap-2.5">

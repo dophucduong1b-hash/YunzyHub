@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
+  ChevronLeft,
   Home,
   Layers,
   LayoutGrid,
@@ -49,18 +50,13 @@ export const PRIMARY_NAV_ITEMS: Array<{
   { id: 'settings', label: 'Cài đặt', icon: Settings },
 ];
 
+const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
+
 const DOCK_SPRING = {
   type: 'spring' as const,
-  stiffness: 520,
-  damping: 34,
-  mass: 0.68,
-};
-
-const PAGE_SPRING = {
-  type: 'spring' as const,
-  stiffness: 520,
-  damping: 38,
-  mass: 0.62,
+  stiffness: 420,
+  damping: 40,
+  mass: 0.8,
 };
 
 const NAV_ORDER: Record<NavSection, number> = {
@@ -86,9 +82,16 @@ export default function App() {
   const [codeEditingTool, setCodeEditingTool] = useState<ToolManifest | null>(
     null
   );
+  const [swipeHomeProgress, setSwipeHomeProgress] = useState(0);
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const swipeGestureRef = useRef<{
+    startX: number;
+    startY: number;
+    startTime: number;
+    locked: 'none' | 'horizontal' | 'cancelled';
+  } | null>(null);
   const isOnline = useOnlineStatus();
 
   useEffect(() => {
@@ -105,6 +108,13 @@ export default function App() {
     []
   );
   const preferences = useLiveQuery(() => db.preferences.toArray(), [], []);
+  const toolStorageRecords = useLiveQuery(() => db.toolStorage.toArray(), [], []);
+  const historyCount = useLiveQuery(() => db.history.count(), [], 0);
+
+  const toolStorageBytes = toolStorageRecords.reduce(
+    (acc, r) => acc + (r.byteSize || 0),
+    0
+  );
 
   const theme = parsePreferenceValue<ThemeMode>(
     preferences,
@@ -126,10 +136,31 @@ export default function App() {
     'hapticsEnabled',
     DEFAULT_PREFERENCES.hapticsEnabled ?? true
   );
+  const reducedMotion = parsePreferenceValue<boolean>(
+    preferences,
+    'reducedMotion',
+    DEFAULT_PREFERENCES.reducedMotion ?? false
+  );
+  const swipeBackHome = parsePreferenceValue<boolean>(
+    preferences,
+    'swipeBackHome',
+    DEFAULT_PREFERENCES.swipeBackHome ?? true
+  );
+  const openAfterImportDefault = parsePreferenceValue<boolean>(
+    preferences,
+    'openAfterImportDefault',
+    DEFAULT_PREFERENCES.openAfterImportDefault ?? true
+  );
 
   useEffect(() => {
     haptic.setEnabled(hapticsEnabled);
   }, [hapticsEnabled]);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('reduce-motion', reducedMotion);
+    }
+  }, [reducedMotion]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -211,8 +242,86 @@ export default function App() {
   const isWorkspaceActive = activeSection === 'workspace';
   const hasRunningWorkspaceTool = isWorkspaceActive && workspaceTabs.length > 0;
 
+  const canSwipeBackHome =
+    swipeBackHome &&
+    activeSection !== 'dashboard' &&
+    !hasRunningWorkspaceTool &&
+    !importModalState.open &&
+    !editingTool &&
+    !codeEditingTool;
+
+  const handleContainerTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!canSwipeBackHome || e.touches.length !== 1) return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target?.closest('input, textarea, select, [contenteditable="true"]')
+    ) {
+      return;
+    }
+    let el = target;
+    const container = scrollContainerRef.current;
+    while (el && el !== container) {
+      if (el.scrollWidth > el.clientWidth + 4 && el.scrollLeft > 0) {
+        return;
+      }
+      el = el.parentElement;
+    }
+    const t = e.touches[0];
+    swipeGestureRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      startTime: Date.now(),
+      locked: 'none',
+    };
+  };
+
+  const handleContainerTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const state = swipeGestureRef.current;
+    if (!state || state.locked === 'cancelled' || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - state.startX;
+    const dy = t.clientY - state.startY;
+
+    if (state.locked === 'none') {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
+        state.locked = 'cancelled';
+        setSwipeHomeProgress(0);
+        return;
+      }
+      if (dx > 12 && dx > Math.abs(dy) * 1.4) {
+        state.locked = 'horizontal';
+      } else if (dx < -10) {
+        state.locked = 'cancelled';
+        return;
+      }
+    }
+
+    if (state.locked === 'horizontal') {
+      setSwipeHomeProgress(Math.min(1, Math.max(0, (dx - 12) / 76)));
+    }
+  };
+
+  const handleContainerTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const state = swipeGestureRef.current;
+    swipeGestureRef.current = null;
+    setSwipeHomeProgress(0);
+    if (!state || state.locked !== 'horizontal' || !canSwipeBackHome) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - state.startX;
+    const elapsed = Date.now() - state.startTime;
+    if (dx >= 72 || (dx >= 44 && elapsed < 260)) {
+      navigateTo('dashboard');
+    }
+  };
+
+  const handleContainerTouchCancel = () => {
+    swipeGestureRef.current = null;
+    setSwipeHomeProgress(0);
+  };
+
   return (
-    <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'user'}>
       {/* Full-bleed fixed app-shell (inset-0 without 100dvh override) spans true edge-to-edge on iOS PWA */}
       <div className="fixed inset-0 w-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-neutral-900 dark:text-neutral-50 selection:bg-[#FF6B35]/20 flex">
         {/* Desktop Sidebar */}
@@ -315,12 +424,29 @@ export default function App() {
         {/* Internal Scrollable Content Column */}
         <div
           ref={scrollContainerRef}
+          onTouchStart={handleContainerTouchStart}
+          onTouchMove={handleContainerTouchMove}
+          onTouchEnd={handleContainerTouchEnd}
+          onTouchCancel={handleContainerTouchCancel}
           className={`flex-1 flex flex-col min-w-0 min-h-0 ${
             hasRunningWorkspaceTool
               ? 'overflow-hidden'
               : 'overflow-y-auto overscroll-y-contain'
           }`}
         >
+          {swipeHomeProgress > 0.08 && (
+            <div
+              aria-hidden="true"
+              className="fixed left-3 top-1/2 z-40 pointer-events-none lg:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-black/[0.08] dark:border-white/[0.12] bg-white/88 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-lg text-xs font-semibold text-neutral-900 dark:text-white"
+              style={{
+                opacity: Math.min(1, swipeHomeProgress * 1.2),
+                transform: `translate3d(${Math.round((swipeHomeProgress - 1) * 16)}px, -50%, 0)`,
+              }}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </div>
+          )}
           {!isOnline && !hasRunningWorkspaceTool && (
             <div className="px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-200 shrink-0">
               <WifiOff className="w-3.5 h-3.5 shrink-0" />
@@ -336,21 +462,16 @@ export default function App() {
             }
           >
             {!dbInitialized ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-2">
-                <div className="h-28 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] animate-pulse" />
-                <div className="h-28 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] animate-pulse" />
-                <div className="h-28 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] animate-pulse" />
-                <div className="h-28 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] animate-pulse" />
-              </div>
+              <div className="min-h-[120px]" aria-busy="true" />
             ) : (
               <>
                 {!isWorkspaceActive && (
                   <AnimatePresence initial={false}>
                     <motion.div
                       key={activeSection}
-                      initial={{ opacity: 0, x: navDirection * 14, scale: 0.994 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      transition={PAGE_SPRING}
+                      initial={{ opacity: 0, x: navDirection * 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.22, ease: APPLE_EASE }}
                     >
                       {activeSection === 'dashboard' && (
                         <DashboardPage
@@ -420,6 +541,31 @@ export default function App() {
                             if (enabled) haptic.selection();
                             toolRepository.setPreference('hapticsEnabled', enabled);
                           }}
+                          reducedMotion={reducedMotion}
+                          onReducedMotionChange={(enabled) => {
+                            haptic.selection();
+                            toolRepository.setPreference('reducedMotion', enabled);
+                          }}
+                          swipeBackHome={swipeBackHome}
+                          onSwipeBackHomeChange={(enabled) => {
+                            haptic.selection();
+                            toolRepository.setPreference('swipeBackHome', enabled);
+                          }}
+                          openAfterImportDefault={openAfterImportDefault}
+                          onOpenAfterImportDefaultChange={(enabled) => {
+                            haptic.selection();
+                            toolRepository.setPreference(
+                              'openAfterImportDefault',
+                              enabled
+                            );
+                          }}
+                          workspaceTabCount={workspaceTabs.length}
+                          onCloseAllWorkspaceTabs={() =>
+                            toolRepository.closeAllWorkspaceTabs()
+                          }
+                          toolStorageCount={toolStorageRecords.length}
+                          toolStorageBytes={toolStorageBytes}
+                          historyCount={historyCount}
                         />
                       )}
                     </motion.div>
@@ -439,6 +585,7 @@ export default function App() {
                     tools={tools}
                     workspaceTabs={workspaceTabs}
                     activeTabId={activeTabId}
+                    swipeBackHome={swipeBackHome}
                     onSelectTab={(tabId) => {
                       haptic.selection();
                       toolRepository.setActiveWorkspaceTab(tabId);
@@ -477,10 +624,10 @@ export default function App() {
           {!hasRunningWorkspaceTool && (
             <motion.nav
               key="mobile-ios-dock"
-              initial={{ y: 28, opacity: 0, scale: 0.96 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 28, opacity: 0, scale: 0.96 }}
-              transition={DOCK_SPRING}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              transition={{ duration: 0.2, ease: APPLE_EASE }}
               aria-label="Điều hướng di động"
               className="lg:hidden absolute ios-dock-bottom left-5 right-5 z-30 mx-auto max-w-[368px] rounded-[28px] border border-black/[0.08] dark:border-white/[0.12] bg-white/82 dark:bg-[#1C1C1E]/85 backdrop-blur-2xl backdrop-saturate-[180%] shadow-[0_8px_30px_rgba(0,0,0,0.10),0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_14px_38px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] p-1.5 grid grid-cols-4 gap-1 will-change-transform"
             >
@@ -499,8 +646,8 @@ export default function App() {
                         ? 'Tìm kiếm — chạm lại để mở bàn phím'
                         : item.label
                     }
-                    whileTap={{ scale: 0.9 }}
-                    transition={{ type: 'spring', stiffness: 550, damping: 30 }}
+                    whileTap={{ scale: 0.94 }}
+                    transition={{ duration: 0.14, ease: APPLE_EASE }}
                     onClick={() => navigateTo(item.id)}
                     className={`relative min-h-[50px] flex flex-col items-center justify-center gap-0.5 rounded-[22px] px-1 py-1.5 text-[11px] leading-tight whitespace-nowrap select-none transition-colors ${
                       isActive
@@ -516,27 +663,14 @@ export default function App() {
                         className="absolute inset-0 rounded-[22px] bg-black/[0.07] dark:bg-white/[0.14] -z-10 will-change-transform"
                       />
                     )}
-                    <motion.span
-                      animate={{ scale: isActive ? 1.07 : 1 }}
-                      transition={DOCK_SPRING}
-                      className="relative flex items-center justify-center"
-                    >
+                    <span className="relative flex items-center justify-center">
                       <Icon className="w-[19px] h-[19px] stroke-[2]" />
-                      <AnimatePresence>
-                        {showWorkspaceCount && (
-                          <motion.span
-                            key="ws-badge"
-                            initial={{ scale: 0.4, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.4, opacity: 0 }}
-                            transition={DOCK_SPRING}
-                            className="absolute -top-1 -right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-[#FF6B35] text-white text-[9px] font-bold leading-[14px] text-center tabular-nums"
-                          >
-                            {workspaceTabs.length}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </motion.span>
+                      {showWorkspaceCount && (
+                        <span className="absolute -top-1 -right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-[#FF6B35] text-white text-[9px] font-bold leading-[14px] text-center tabular-nums">
+                          {workspaceTabs.length}
+                        </span>
+                      )}
+                    </span>
                     <span>{item.label}</span>
                   </motion.button>
                 );
@@ -549,6 +683,7 @@ export default function App() {
         <ImportToolModal
           isOpen={importModalState.open}
           initialMode={importModalState.mode}
+          defaultOpenAfterImport={openAfterImportDefault}
           onClose={() => {
             haptic.light();
             setImportModalState((s) => ({ ...s, open: false }));

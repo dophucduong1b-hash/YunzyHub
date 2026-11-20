@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  ChevronLeft,
   Code2,
   FileArchive,
   FileCode,
@@ -8,7 +9,6 @@ import {
   Globe,
   Layers,
   LayoutGrid,
-  Plus,
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -34,6 +34,7 @@ interface WorkspacePageProps {
   onEditCode?: (tool: ToolManifest) => void;
   onNavigate: (section: NavSection) => void;
   onBack?: () => void;
+  swipeBackHome?: boolean;
 }
 
 export const WorkspacePage: React.FC<WorkspacePageProps> = ({
@@ -47,7 +48,15 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   onEditCode,
   onNavigate,
   onBack,
+  swipeBackHome = true,
 }) => {
+  const [edgeSwipeProgress, setEdgeSwipeProgress] = useState(0);
+  const edgeSwipeRef = useRef<{
+    startX: number;
+    startY: number;
+    startTime: number;
+    locked: 'none' | 'horizontal' | 'cancelled';
+  } | null>(null);
   const toolMap = useMemo(() => {
     const map = new Map<string, ToolManifest>();
     tools.forEach((t) => map.set(t.id, t));
@@ -148,11 +157,68 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
     );
   }
 
+  const handleEdgeTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!swipeBackHome || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    edgeSwipeRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      startTime: Date.now(),
+      locked: 'none',
+    };
+  };
+
+  const handleEdgeTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const state = edgeSwipeRef.current;
+    if (!state || state.locked === 'cancelled' || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - state.startX;
+    const dy = t.clientY - state.startY;
+
+    if (state.locked === 'none') {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
+        state.locked = 'cancelled';
+        setEdgeSwipeProgress(0);
+        return;
+      }
+      if (dx > 6 && dx > Math.abs(dy) * 1.3) {
+        state.locked = 'horizontal';
+      } else if (dx < -6) {
+        state.locked = 'cancelled';
+        return;
+      }
+    }
+
+    if (state.locked === 'horizontal') {
+      setEdgeSwipeProgress(Math.min(1, Math.max(0, dx / 72)));
+    }
+  };
+
+  const handleEdgeTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    const state = edgeSwipeRef.current;
+    edgeSwipeRef.current = null;
+    setEdgeSwipeProgress(0);
+    if (!state || state.locked !== 'horizontal') return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - state.startX;
+    const elapsed = Date.now() - state.startTime;
+    if (dx >= 56 || (dx >= 34 && elapsed < 260)) {
+      haptic.selection();
+      onNavigate('dashboard');
+    }
+  };
+
+  const handleEdgeTouchCancel = () => {
+    edgeSwipeRef.current = null;
+    setEdgeSwipeProgress(0);
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14, scale: 0.988 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 460, damping: 36, mass: 0.72 }}
+      initial={{ opacity: 0, x: 14 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       className="fixed inset-0 z-40 w-full flex flex-col bg-white dark:bg-[#0A0A0C] overflow-hidden lg:static lg:z-auto lg:h-[calc(100vh-2rem)] lg:rounded-2xl lg:border lg:border-black/[0.07] lg:dark:border-white/[0.08] lg:bg-white lg:dark:bg-[#161618] lg:shadow-xs"
     >
       {/* Slim Single-Row Mobile & Desktop Top Bar (respects Dynamic Island safe area) */}
@@ -227,17 +293,6 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                 <Code2 className="w-4 h-4" />
               </motion.button>
             )}
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.88 }}
-              onClick={() => onNavigate('library')}
-              aria-label="Mở thêm"
-              title="Mở thêm"
-              className="relative min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
-            >
-              <HapticTapOverlay />
-              <Plus className="w-4 h-4" />
-            </motion.button>
             {resolvedTabs.length > 1 && (
               <button
                 type="button"
@@ -253,6 +308,33 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
 
       {/* Full-Viewport Tool Content Area */}
       <div className="relative flex-1 min-h-0 w-full overflow-hidden flex flex-col">
+        {swipeBackHome && (
+          <div
+            onTouchStart={handleEdgeTouchStart}
+            onTouchMove={handleEdgeTouchMove}
+            onTouchEnd={handleEdgeTouchEnd}
+            onTouchCancel={handleEdgeTouchCancel}
+            aria-hidden="true"
+            className="fixed left-0 bottom-0 w-[22px] z-50 lg:hidden"
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 44px)',
+              touchAction: 'pan-y',
+            }}
+          />
+        )}
+        {edgeSwipeProgress > 0.08 && (
+          <div
+            aria-hidden="true"
+            className="fixed left-3 top-1/2 z-50 pointer-events-none lg:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-black/[0.08] dark:border-white/[0.12] bg-white/88 dark:bg-[#1C1C1E]/90 backdrop-blur-xl shadow-lg text-xs font-semibold text-neutral-900 dark:text-white"
+            style={{
+              opacity: Math.min(1, edgeSwipeProgress * 1.2),
+              transform: `translate3d(${Math.round((edgeSwipeProgress - 1) * 16)}px, -50%, 0)`,
+            }}
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>Home</span>
+          </div>
+        )}
         {resolvedTabs.map(({ tab, tool }) => {
           const isActive = tab.id === effectiveActiveTabId;
           return (
