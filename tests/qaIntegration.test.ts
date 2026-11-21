@@ -30,6 +30,7 @@ import {
 } from '../src/adapters/runners/cspBuilder.ts';
 import { compilePackageToSrcDoc } from '../src/adapters/runners/packageBundler.ts';
 import { PRIMARY_NAV_ITEMS } from '../src/App.tsx';
+import { APP_FONT_OPTIONS, normalizeFontFamily, resolveFontStack } from '../src/utils/fonts.ts';
 import { db } from '../src/db/database.ts';
 import { DashboardPage } from '../src/pages/DashboardPage.tsx';
 import { LibraryPage } from '../src/pages/LibraryPage.tsx';
@@ -655,14 +656,19 @@ async function runAllTests() {
   });
 
   await test('10. UI Pages Rendering: Clean Interface, 4-Function iOS Blur Taskbar & Full-Viewport Mobile Workspace', async () => {
-    // Verify exact 4 navigation items in exact requested order (Thư viện swapped with Không gian)
+    // Verify exact 4 navigation items in exact v1.2.1 order (Thư viện moved into mobile Dock, Tìm kiếm moved to desktop sidebar)
     assert.deepEqual(
       PRIMARY_NAV_ITEMS.map((item) => item.label),
-      ['Home', 'Không gian', 'Tìm kiếm', 'Cài đặt'],
-      'Taskbar must display exact 4 functions: Home, Không gian, Tìm kiếm, Cài đặt'
+      ['Home', 'Không gian', 'Thư viện', 'Cài đặt'],
+      'Taskbar must display exact 4 functions: Home, Không gian, Thư viện, Cài đặt'
+    );
+    assert.deepEqual(
+      PRIMARY_NAV_ITEMS.map((item) => item.id),
+      ['dashboard', 'workspace', 'library', 'settings'],
+      'Taskbar IDs must match v1.2.1 route order'
     );
 
-    // Verify iOS floating rounded blur taskbar, fixed shell preventing dock drift, zoom lock, Hex Hub icon, system fonts, haptics & animations
+    // Verify iOS floating pill blur taskbar, fixed shell preventing dock drift, zoom lock, Hex Hub icon, system fonts, haptics & animations
     const indexHtmlSource = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
     assert.ok(indexHtmlSource.includes('viewport-fit=cover'), 'index.html must include viewport-fit=cover for iPhone safe-area insets');
     assert.ok(
@@ -670,8 +676,8 @@ async function runAllTests() {
       'index.html must lock viewport scale and disable zoom'
     );
     assert.ok(
-      indexHtmlSource.includes('sizes="180x180" href="/apple-touch-icon.png'),
-      'index.html must reference 180x180 apple-touch-icon.png for Safari Add to Home Screen'
+      indexHtmlSource.includes('sizes="180x180" href="./apple-touch-icon.png'),
+      'index.html must reference relative 180x180 apple-touch-icon.png for GitHub Pages subpath Add to Home Screen'
     );
 
     const indexCssSource = fs.readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf-8');
@@ -697,7 +703,7 @@ async function runAllTests() {
     assert.ok(!appSource.includes('fixed inset-0 h-[100dvh]'), 'App shell must not override fixed inset-0 with h-[100dvh] on iOS standalone PWA');
     assert.ok(appSource.includes('searchInputRef'), 'App must wire double-tap Search icon to focus keyboard input');
     assert.ok(appSource.includes('CodeEditorModal'), 'App must wire in-app direct code editing modal');
-    assert.ok(appSource.includes('rounded-[28px]'), 'Mobile taskbar must have iOS rounded corners');
+    assert.ok(appSource.includes('rounded-full'), 'Mobile taskbar must use concentric iOS pill corners');
     assert.ok(appSource.includes('backdrop-blur-2xl'), 'Mobile taskbar must have frosted blur');
     assert.ok(appSource.includes('grid-cols-4'), 'Mobile taskbar must lay out 4 equal columns');
     assert.ok(!appSource.includes('blur-3xl'), 'App must not contain AI ambient gradient blobs');
@@ -1211,6 +1217,199 @@ async function runAllTests() {
       String(diagnosticsReceived[0].message).includes('Simulated uncaught tool failure'),
       'Diagnostic message must include readable error cause'
     );
+  });
+
+  await test('14. v1.2.1 Font System, Bottom Workspace Tab Bar Preference, Silent Reading Progress & Minimalist Popups', async () => {
+    // 1. Font system & 34 bundled WOFF2 font assets referenced cleanly in CSS
+    assert.deepEqual(
+      APP_FONT_OPTIONS.map((f) => f.id),
+      ['system', 'sf_pro', 'sf_rounded', 'be_vietnam', 'jakarta', 'nunito', 'condensed', 'light', 'serif', 'mono'],
+      'Must provide all 10 font options including Apple SF Pro & SF Rounded'
+    );
+    assert.equal(normalizeFontFamily('sans'), 'be_vietnam', 'Legacy sans preference must migrate to be_vietnam');
+    assert.equal(normalizeFontFamily('invalid-font'), 'system', 'Unknown font preference must fall back to system');
+    assert.equal(normalizeFontFamily('sf_pro'), 'sf_pro');
+    assert.ok(resolveFontStack('sf_pro').includes('YunzySFPro'));
+    assert.ok(resolveFontStack('mono').includes('YunzyJetBrains'));
+
+    const indexCssSource = fs.readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf-8');
+    const woff2Refs = Array.from(indexCssSource.matchAll(/url\(['"]\.\/assets\/fonts\/([^'"]+\.woff2)['"]\)/g)).map(
+      (m) => m[1]
+    );
+    assert.equal(
+      new Set(woff2Refs).size,
+      34,
+      'src/index.css must reference all 34 unique WOFF2 font files on disk'
+    );
+    for (const fontFile of woff2Refs) {
+      assert.ok(
+        fs.existsSync(path.resolve(process.cwd(), 'src/assets/fonts', fontFile)),
+        `Referenced WOFF2 font must exist on disk: ${fontFile}`
+      );
+    }
+
+    // 2. Preferences persistence (fontFamily, fontScale, workspaceTabBarPosition)
+    await toolRepository.setPreference('fontFamily', 'sf_pro');
+    await toolRepository.setPreference('fontScale', 1.15);
+    await toolRepository.setPreference('workspaceTabBarPosition', 'bottom');
+    assert.equal((await db.preferences.get('fontFamily'))?.value, 'sf_pro');
+    assert.equal((await db.preferences.get('fontScale'))?.value, 1.15);
+    assert.equal((await db.preferences.get('workspaceTabBarPosition'))?.value, 'bottom');
+
+    // 3. Silent background reading progress persistence + cleanup on deleteTool & clearAllData
+    const docHtml = '<!DOCTYPE html><html><body style="height:3000px"><p>YunzyHub Progress</p></body></html>';
+    const docBytes = new TextEncoder().encode(docHtml);
+    const progressTool = await toolRepository.createTool({
+      name: 'Progress Doc',
+      description: 'Silent reading progress test document',
+      type: 'html',
+      category: 'Đọc',
+      tags: [],
+      files: [
+        {
+          path: 'index.html',
+          mimeType: 'text/html',
+          size: docBytes.byteLength,
+          data: docBytes,
+          isText: true,
+          textContent: docHtml,
+        },
+      ],
+    });
+
+    toolRepository.saveReadingProgress({
+      toolId: progressTool.id,
+      kind: 'web',
+      entryPath: 'index.html',
+      scrollY: 420,
+      scrollRatio: 0.62,
+    });
+    const immediateProgress = await toolRepository.getReadingProgress(progressTool.id, 'index.html');
+    assert.equal(immediateProgress?.scrollY, 420);
+    assert.equal(immediateProgress?.scrollRatio, 0.62);
+
+    // Wait past 450ms debounce to confirm IndexedDB persistence as well
+    await new Promise((resolve) => setTimeout(resolve, 550));
+    const persistedProgressCount = await db.readingProgress.where('toolId').equals(progressTool.id).count();
+    assert.equal(persistedProgressCount, 1, 'Reading progress must flush cleanly to IndexedDB');
+
+    await toolRepository.deleteTool(progressTool.id);
+    assert.equal(
+      await toolRepository.getReadingProgress(progressTool.id, 'index.html'),
+      null,
+      'Deleting tool must wipe its reading progress'
+    );
+
+    // 4. compilePackageToSrcDoc preserves strict CSP while injecting INITIAL_SCROLL and __YUNZY_SCROLL_SYNC__
+    const compiledWithScroll = compilePackageToSrcDoc(
+      [
+        {
+          path: 'index.html',
+          mimeType: 'text/html',
+          size: docBytes.byteLength,
+          data: docBytes,
+          isText: true,
+          textContent: docHtml,
+        },
+      ],
+      'index.html',
+      {
+        toolId: 'scroll-sync-tool',
+        capabilityToken: 'scroll-tok-1',
+        initialLocalStorage: {},
+        initialScroll: { scrollY: 310, scrollRatio: 0.45 },
+      }
+    );
+    assert.ok(compiledWithScroll.srcDoc.includes(SANDBOX_CSP_DIRECTIVE), 'Must preserve SANDBOX_CSP_DIRECTIVE');
+    assert.ok(compiledWithScroll.srcDoc.includes('__YUNZY_SCROLL_SYNC__'), 'Must inject silent scroll sync bridge');
+    assert.ok(compiledWithScroll.srcDoc.includes('"scrollY":310'), 'Must embed INITIAL_SCROLL position');
+
+    // 5. Minimalist Workspace (empty + bottom tab bar) & Settings v1.2.1 SSR checks
+    const emptyWsHtml = renderToStaticMarkup(
+      React.createElement(WorkspacePage, {
+        tools: [],
+        workspaceTabs: [],
+        activeTabId: null,
+        tabBarPosition: 'bottom',
+        onSelectTab: () => {},
+        onCloseTab: () => {},
+        onCloseAllTabs: () => {},
+        onLaunchTool: () => {},
+        onOpenImportModal: () => {},
+        onNavigate: () => {},
+      })
+    );
+    assert.ok(emptyWsHtml.includes('Chưa có thẻ'), 'Empty Workspace must show minimalist Chưa có thẻ state');
+    assert.ok(emptyWsHtml.includes('Thư viện'), 'Empty Workspace must offer Thư viện button');
+    assert.ok(emptyWsHtml.includes('Tạo code'), 'Empty Workspace must offer Tạo code button');
+
+    const activeTools = await db.tools.toArray();
+    const activeTabs = await db.workspace.orderBy('order').toArray();
+    if (activeTabs.length > 0 && activeTools.length > 0) {
+      const bottomWsHtml = renderToStaticMarkup(
+        React.createElement(WorkspacePage, {
+          tools: activeTools,
+          workspaceTabs: activeTabs,
+          activeTabId: activeTabs[0].id,
+          tabBarPosition: 'bottom',
+          onSelectTab: () => {},
+          onCloseTab: () => {},
+          onCloseAllTabs: () => {},
+          onLaunchTool: () => {},
+          onOpenImportModal: () => {},
+          onNavigate: () => {},
+        })
+      );
+      assert.ok(bottomWsHtml.includes('ios-bottom-safe'), 'Bottom tab bar mode must use ios-bottom-safe strip');
+      assert.ok(bottomWsHtml.includes('bottom:60px'), 'Bottom tab bar mode must anchor content viewport above 60px strip');
+    }
+
+    const v121SettingsHtml = renderToStaticMarkup(
+      React.createElement(SettingsPage, {
+        tools: activeTools,
+        theme: 'dark',
+        onThemeChange: () => {},
+        fontFamily: 'sf_pro',
+        fontScale: 1.15,
+        workspaceTabBarPosition: 'bottom',
+        reducedMotion: true,
+      })
+    );
+    assert.ok(v121SettingsHtml.includes('SF Pro'));
+    assert.ok(v121SettingsHtml.includes('115%'));
+    assert.ok(v121SettingsHtml.includes('Dưới cùng'));
+    assert.ok(v121SettingsHtml.includes('Vị trí thanh tab'));
+    assert.ok(v121SettingsHtml.includes('Hướng dẫn sử dụng'));
+    assert.ok(v121SettingsHtml.includes('1.2.1'));
+
+    // 6. clearAllData resets readingProgress table completely
+    const cleanupTool = await toolRepository.createTool({
+      name: 'Cleanup Doc',
+      description: 'Verify clearAllData removes reading progress',
+      type: 'html',
+      category: 'Đọc',
+      tags: [],
+      files: [
+        {
+          path: 'index.html',
+          mimeType: 'text/html',
+          size: docBytes.byteLength,
+          data: docBytes,
+          isText: true,
+          textContent: docHtml,
+        },
+      ],
+    });
+    toolRepository.saveReadingProgress({
+      toolId: cleanupTool.id,
+      kind: 'web',
+      entryPath: 'index.html',
+      scrollY: 120,
+      scrollRatio: 0.25,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 550));
+    await toolRepository.clearAllData();
+    assert.equal(await db.readingProgress.count(), 0, 'clearAllData must clear readingProgress table');
   });
 
   console.log(`\nALL ${passed} AUTOMATED INTEGRATION TEST SUITES PASSED SUCCESSFULLY!`);

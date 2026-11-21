@@ -8,17 +8,20 @@ import { STORAGE_LIMITS } from '../adapters/runners/compatRuntime';
 import { uint8ArrayToBase64 } from '../adapters/runners/packageBundler';
 import { db } from '../db/database';
 import type {
+  AppFontFamily,
   AppPreferences,
   BackupFileEntryV1,
   BackupPayloadV1,
   HistoryRecord,
   LibraryViewMode,
   PreferenceRecord,
+  ReadingProgressRecord,
   ThemeMode,
   ToolFileRecord,
   ToolManifest,
   ToolStorageRecord,
   ToolType,
+  WorkspaceTabBarPosition,
   WorkspaceTabRecord,
 } from '../types/models';
 
@@ -74,7 +77,16 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   reducedMotion: false,
   swipeBackHome: true,
   openAfterImportDefault: true,
+  fontFamily: 'system',
+  fontScale: 1.0,
+  workspaceTabBarPosition: 'top',
 };
+
+const readingProgressCache = new Map<string, ReadingProgressRecord>();
+
+function readingProgressId(toolId: string, entryPath: string): string {
+  return `${toolId}::${entryPath || ''}`;
+}
 
 export const LEGACY_SAMPLE_TOOL_IDS = [
   'sample-html-dev-studio',
@@ -363,12 +375,13 @@ export const toolRepository = {
   async deleteTool(toolId: string): Promise<void> {
     await db.transaction(
       'rw',
-      [db.tools, db.toolFiles, db.toolStorage, db.workspace, db.preferences],
+      [db.tools, db.toolFiles, db.toolStorage, db.workspace, db.preferences, db.readingProgress],
       async () => {
         await db.tools.delete(toolId);
         await db.toolFiles.where('toolId').equals(toolId).delete();
         await db.toolStorage.delete(toolId);
         await db.workspace.delete(toolId);
+        await db.readingProgress.where('toolId').equals(toolId).delete();
 
         const activePref = await db.preferences.get('activeTabId');
         if (activePref?.value === toolId) {
@@ -382,6 +395,10 @@ export const toolRepository = {
         }
       }
     );
+    const prefix = `${toolId}::`;
+    for (const k of Array.from(readingProgressCache.keys())) {
+      if (k.startsWith(prefix)) readingProgressCache.delete(k);
+    }
   },
 
   /**
@@ -1114,7 +1131,7 @@ export const toolRepository = {
   async clearAllData(): Promise<void> {
     await db.transaction(
       'rw',
-      [db.tools, db.toolFiles, db.toolStorage, db.preferences, db.workspace, db.history],
+      [db.tools, db.toolFiles, db.toolStorage, db.preferences, db.workspace, db.history, db.readingProgress],
       async () => {
         await Promise.all([
           db.tools.clear(),
@@ -1122,6 +1139,7 @@ export const toolRepository = {
           db.toolStorage.clear(),
           db.workspace.clear(),
           db.history.clear(),
+          db.readingProgress.clear(),
         ]);
         const now = new Date().toISOString();
         await db.preferences.put({
@@ -1141,6 +1159,61 @@ export const toolRepository = {
         });
       }
     );
+    readingProgressCache.clear();
+  },
+
+  async getReadingProgress(
+    toolId: string,
+    entryPath = ''
+  ): Promise<ReadingProgressRecord | null> {
+    if (!toolId) return null;
+    const id = readingProgressId(toolId, entryPath);
+    const cached = readingProgressCache.get(id);
+    if (cached) return cached;
+    try {
+      const stored = await db.readingProgress.get(id);
+      if (stored) {
+        readingProgressCache.set(id, stored);
+        return stored;
+      }
+    } catch {
+      // Ignore storage read errors silently
+    }
+    return null;
+  },
+
+  saveReadingProgress(
+    progress: Omit<ReadingProgressRecord, 'id' | 'updatedAt'>
+  ): void {
+    if (!progress.toolId) return;
+    const entryPath = progress.entryPath || '';
+    const id = readingProgressId(progress.toolId, entryPath);
+    const scrollY = Math.max(0, Math.round(progress.scrollY || 0));
+    const scrollRatio = Math.min(1, Math.max(0, Number(progress.scrollRatio || 0)));
+
+    const prev = readingProgressCache.get(id);
+    if (
+      prev &&
+      prev.kind === progress.kind &&
+      prev.scrollY === scrollY &&
+      Math.abs(prev.scrollRatio - scrollRatio) < 0.0005
+    ) {
+      return;
+    }
+
+    const record: ReadingProgressRecord = {
+      id,
+      toolId: progress.toolId,
+      entryPath,
+      kind: progress.kind,
+      scrollY,
+      scrollRatio,
+      updatedAt: new Date().toISOString(),
+    };
+    readingProgressCache.set(id, record);
+    db.readingProgress.put(record).catch(() => {
+      // Silent background persistence
+    });
   },
 };
 
@@ -1190,4 +1263,4 @@ export function parsePreferenceValue<T>(
   const found = records.find((r) => r.key === key);
   return (found?.value as T) ?? fallback;
 }
-export type { ThemeMode, LibraryViewMode };
+export type { ThemeMode, LibraryViewMode, AppFontFamily, WorkspaceTabBarPosition, ReadingProgressRecord };

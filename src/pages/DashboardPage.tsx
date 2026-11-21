@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { LayoutGrid, Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { HapticTapOverlay } from '../components/HapticTapOverlay';
 import { ToolCard } from '../components/ToolCard';
@@ -18,8 +18,11 @@ interface DashboardPageProps {
   onLaunchTool: (tool: ToolManifest) => void;
   onToggleFavorite: (tool: ToolManifest) => void;
   onEditTool: (tool: ToolManifest) => void;
+  onEditCode?: (tool: ToolManifest) => void;
+  onShareTool?: (tool: ToolManifest) => void;
+  onDeleteTool?: (tool: ToolManifest) => void;
   onOpenImportModal: (mode: 'file' | 'create' | 'url') => void;
-  onNavigate: (section: NavSection) => void;
+  onNavigate?: (section: NavSection) => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
@@ -28,8 +31,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onLaunchTool,
   onToggleFavorite,
   onEditTool,
+  onEditCode,
+  onShareTool,
+  onDeleteTool,
   onOpenImportModal,
-  onNavigate,
 }) => {
   const [query, setQuery] = useState('');
 
@@ -66,7 +71,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Bar */}
+      {/* Balanced Top Bar (Search Pill + Add Button; no redundant Library button) */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-neutral-400 dark:text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -76,7 +81,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Tìm kiếm công cụ"
             placeholder="Tìm kiếm..."
-            className="w-full rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] pl-10 pr-9 py-2.5 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+            className="w-full h-11 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] pl-10 pr-9 text-sm text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/40 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
           />
           {query && (
             <button
@@ -96,25 +101,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
         <motion.button
           type="button"
-          whileTap={{ scale: 0.93 }}
-          onClick={() => onNavigate('library')}
-          aria-label="Thư viện"
-          title="Thư viện"
-          className="relative lg:hidden inline-flex items-center justify-center p-2.5 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] text-neutral-700 dark:text-neutral-200 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
-        >
-          <HapticTapOverlay />
-          <LayoutGrid className="w-4 h-4" />
-        </motion.button>
-
-        <motion.button
-          type="button"
           whileTap={{ scale: 0.94 }}
           onClick={() => onOpenImportModal('file')}
-          className="relative inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-2xl text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors whitespace-nowrap shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+          aria-label="Thêm công cụ"
+          className="relative w-11 h-11 sm:w-auto sm:px-4 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-[#17130F] hover:bg-[#2C241E] dark:bg-white dark:hover:bg-neutral-200 text-[#F3EEE3] dark:text-[#17130F] transition-colors whitespace-nowrap shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
         >
           <HapticTapOverlay />
           <Plus className="w-4 h-4" />
-          <span>Thêm</span>
+          <span className="hidden sm:inline">Thêm</span>
         </motion.button>
       </div>
 
@@ -158,6 +152,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   onLaunch={onLaunchTool}
                   onToggleFavorite={onToggleFavorite}
                   onEdit={onEditTool}
+                  onEditCode={onEditCode}
+                  onShare={onShareTool}
+                  onDelete={onDeleteTool}
                 />
               ))}
             </div>
@@ -183,6 +180,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     onLaunch={onLaunchTool}
                     onToggleFavorite={onToggleFavorite}
                     onEdit={onEditTool}
+                    onEditCode={onEditCode}
+                    onShare={onShareTool}
+                    onDelete={onDeleteTool}
                   />
                 ))}
               </div>
@@ -203,6 +203,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     onLaunch={onLaunchTool}
                     onToggleFavorite={onToggleFavorite}
                     onEdit={onEditTool}
+                    onEditCode={onEditCode}
+                    onShare={onShareTool}
+                    onDelete={onDeleteTool}
                   />
                 ))}
               </div>

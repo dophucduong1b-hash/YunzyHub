@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   FileArchive,
   FileCode,
@@ -14,6 +14,11 @@ import {
 import { motion } from 'motion/react';
 import type { ToolManifest } from '../types/models';
 import { HapticTapOverlay } from './HapticTapOverlay';
+import {
+  type ContextMenuPoint,
+  ToolContextMenu,
+  useLongPress,
+} from './ToolContextMenu';
 
 interface ToolCardProps {
   tool: ToolManifest;
@@ -21,6 +26,9 @@ interface ToolCardProps {
   onLaunch: (tool: ToolManifest) => void;
   onToggleFavorite: (tool: ToolManifest) => void;
   onEdit: (tool: ToolManifest) => void;
+  onEditCode?: (tool: ToolManifest) => void;
+  onShare?: (tool: ToolManifest) => void;
+  onDelete?: (tool: ToolManifest) => void;
 }
 
 export function renderToolTypeGlyph(tool: ToolManifest, sizeClass = 'w-5 h-5 sm:w-[22px] sm:h-[22px] stroke-[1.85]') {
@@ -65,7 +73,13 @@ export const ToolCard: React.FC<ToolCardProps> = ({
   onLaunch,
   onToggleFavorite,
   onEdit,
+  onEditCode,
+  onShare,
+  onDelete,
 }) => {
+  const [menuAnchor, setMenuAnchor] = useState<ContextMenuPoint | null>(null);
+  const longPress = useLongPress((pt) => setMenuAnchor(pt));
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -74,70 +88,96 @@ export const ToolCard: React.FC<ToolCardProps> = ({
   };
 
   return (
-    <motion.article
-      role="button"
-      tabIndex={0}
-      aria-label={`Mở ${tool.name}`}
-      whileTap={{ scale: 0.97 }}
-      transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-      onClick={() => onLaunch(tool)}
-      onKeyDown={handleKeyDown}
-      className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 sm:p-4 cursor-pointer select-none transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B35] ${
-        isOpenInWorkspace
-          ? 'border-neutral-900/20 dark:border-white/25 bg-white dark:bg-[#1A1A1D] shadow-[0_2px_10px_rgba(0,0,0,0.05)]'
-          : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] hover:border-black/[0.12] dark:hover:border-white/[0.15] shadow-[0_1px_2px_rgba(0,0,0,0.03)]'
-      }`}
-    >
-      <HapticTapOverlay zClass="z-0" />
-      <div className="flex items-start justify-between gap-2">
-        <div className="pointer-events-none w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] bg-neutral-100 dark:bg-white/[0.07] flex items-center justify-center">
-          {renderToolTypeGlyph(tool)}
-        </div>
+    <>
+      <motion.article
+        role="button"
+        tabIndex={0}
+        aria-label={`Mở ${tool.name}`}
+        whileTap={{ scale: 0.97 }}
+        transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+        onPointerDown={longPress.onPointerDown}
+        onPointerMove={longPress.onPointerMove}
+        onPointerUp={longPress.onPointerUp}
+        onPointerCancel={longPress.onPointerCancel}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenuAnchor({ x: e.clientX, y: e.clientY });
+        }}
+        onClick={() => {
+          if (longPress.consumeLongPress()) return;
+          onLaunch(tool);
+        }}
+        onKeyDown={handleKeyDown}
+        className={`group relative flex flex-col justify-between rounded-2xl border p-3.5 sm:p-4 cursor-pointer select-none ios-no-callout transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B35] ${
+          isOpenInWorkspace
+            ? 'border-neutral-900/20 dark:border-white/25 bg-white dark:bg-[#1A1A1D] shadow-[0_2px_10px_rgba(0,0,0,0.05)]'
+            : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] hover:border-black/[0.12] dark:hover:border-white/[0.15] shadow-[0_1px_2px_rgba(0,0,0,0.03)]'
+        }`}
+      >
+        <HapticTapOverlay zClass="z-0" />
+        <div className="flex items-start justify-between gap-2">
+          <div className="pointer-events-none w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] bg-neutral-100 dark:bg-white/[0.07] flex items-center justify-center">
+            {renderToolTypeGlyph(tool)}
+          </div>
 
-        <div
-          className="relative z-10 flex items-center -mr-1 -mt-1"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.9 }}
-            onClick={() => onToggleFavorite(tool)}
-            aria-label={
-              tool.favorite ? `Bỏ yêu thích ${tool.name}` : `Yêu thích ${tool.name}`
-            }
-            title={tool.favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-            className={`relative p-2 rounded-xl transition-colors ${
-              tool.favorite
-                ? 'text-amber-500 dark:text-amber-400'
-                : 'text-neutral-400 dark:text-neutral-500 opacity-75 group-hover:opacity-100 hover:text-neutral-800 dark:hover:text-neutral-100'
-            }`}
+          <div
+            className="relative z-10 flex items-center -mr-1 -mt-1"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
-            <HapticTapOverlay />
-            <Star
-              className={`w-4 h-4 transition-transform duration-150 ${
-                tool.favorite ? 'fill-current' : ''
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.9 }}
+              onClick={() => onToggleFavorite(tool)}
+              aria-label={
+                tool.favorite ? `Bỏ yêu thích ${tool.name}` : `Yêu thích ${tool.name}`
+              }
+              title={tool.favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+              className={`relative p-2 rounded-xl transition-colors ${
+                tool.favorite
+                  ? 'text-amber-500 dark:text-amber-400'
+                  : 'text-neutral-400 dark:text-neutral-500 opacity-75 group-hover:opacity-100 hover:text-neutral-800 dark:hover:text-neutral-100'
               }`}
-            />
-          </motion.button>
+            >
+              <HapticTapOverlay />
+              <Star
+                className={`w-4 h-4 transition-transform duration-150 ${
+                  tool.favorite ? 'fill-current' : ''
+                }`}
+              />
+            </motion.button>
 
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.86 }}
-            onClick={() => onEdit(tool)}
-            aria-label={`Tùy chọn ${tool.name}`}
-            title="Chi tiết"
-            className="relative p-2 rounded-xl text-neutral-400 dark:text-neutral-500 opacity-75 group-hover:opacity-100 hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
-          >
-            <HapticTapOverlay />
-            <MoreHorizontal className="w-4 h-4" />
-          </motion.button>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.86 }}
+              onClick={() => onEdit(tool)}
+              aria-label={`Tùy chọn ${tool.name}`}
+              title="Chi tiết"
+              className="relative p-2 rounded-xl text-neutral-400 dark:text-neutral-500 opacity-75 group-hover:opacity-100 hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
+            >
+              <HapticTapOverlay />
+              <MoreHorizontal className="w-4 h-4" />
+            </motion.button>
+          </div>
         </div>
-      </div>
 
-      <h3 className="pointer-events-none mt-3.5 text-[13px] sm:text-sm font-semibold tracking-[-0.01em] text-neutral-900 dark:text-neutral-50 line-clamp-2 leading-snug">
-        {tool.name}
-      </h3>
-    </motion.article>
+        <h3 className="pointer-events-none mt-3.5 text-[13px] sm:text-sm font-semibold tracking-[-0.01em] text-neutral-900 dark:text-neutral-50 line-clamp-2 leading-snug">
+          {tool.name}
+        </h3>
+      </motion.article>
+
+      <ToolContextMenu
+        tool={menuAnchor ? tool : null}
+        anchor={menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+        onLaunch={onLaunch}
+        onShare={onShare}
+        onEditCode={onEditCode}
+        onToggleFavorite={onToggleFavorite}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    </>
   );
 };

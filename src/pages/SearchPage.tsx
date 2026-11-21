@@ -12,6 +12,9 @@ interface SearchPageProps {
   onLaunchTool: (tool: ToolManifest) => void;
   onToggleFavorite: (tool: ToolManifest) => void;
   onEditTool: (tool: ToolManifest) => void;
+  onEditCode?: (tool: ToolManifest) => void;
+  onShareTool?: (tool: ToolManifest) => void;
+  onDeleteTool?: (tool: ToolManifest) => void;
 }
 
 export const SearchPage: React.FC<SearchPageProps> = ({
@@ -21,6 +24,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   onLaunchTool,
   onToggleFavorite,
   onEditTool,
+  onEditCode,
+  onShareTool,
+  onDeleteTool,
 }) => {
   const [query, setQuery] = useState('');
 
@@ -88,6 +94,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({
               onLaunch={onLaunchTool}
               onToggleFavorite={onToggleFavorite}
               onEdit={onEditTool}
+              onEditCode={onEditCode}
+              onShare={onShareTool}
+              onDelete={onDeleteTool}
             />
           ))}
         </div>

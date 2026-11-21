@@ -13,6 +13,7 @@ import { toolRepository } from '../../repositories/toolRepository';
 import type { ToolFileRecord, ToolManifest } from '../../types/models';
 import type {
   RuntimeDiagnosticMessage,
+  ScrollSyncMessage,
   StorageSyncMessage,
 } from './compatRuntime';
 import {
@@ -26,6 +27,9 @@ interface SandboxedHtmlRunnerProps {
   tool: ToolManifest;
   reloadTrigger: number;
   onReloadRequest: () => void;
+  isBottomTabBar?: boolean;
+  showInfoPopover?: boolean;
+  onShowInfoPopoverChange?: (open: boolean) => void;
 }
 
 interface DiagnosticEntry {
@@ -50,16 +54,31 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
   tool,
   reloadTrigger,
   onReloadRequest,
+  isBottomTabBar = false,
+  showInfoPopover: controlledShowInfo,
+  onShowInfoPopoverChange,
 }) => {
   const [files, setFiles] = useState<ToolFileRecord[] | null>(null);
   const [initialStorage, setInitialStorage] = useState<Record<string, string>>({});
+  const [initialScroll, setInitialScroll] = useState<{ scrollY: number; scrollRatio: number } | null>(null);
   const [storageKeyCount, setStorageKeyCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeEntryPath, setActiveEntryPath] = useState<string>(
     tool.entryPath || 'index.html'
   );
-  const [showInfoPopover, setShowInfoPopover] = useState<boolean>(false);
+  const [internalShowInfoPopover, setInternalShowInfoPopover] = useState<boolean>(false);
+  const showInfoPopover = onShowInfoPopoverChange
+    ? Boolean(controlledShowInfo)
+    : internalShowInfoPopover;
+  const setShowInfoPopover = (next: boolean | ((prev: boolean) => boolean)) => {
+    const resolved = typeof next === 'function' ? next(showInfoPopover) : next;
+    if (onShowInfoPopoverChange) {
+      onShowInfoPopoverChange(resolved);
+    } else {
+      setInternalShowInfoPopover(resolved);
+    }
+  };
   const [diagnostics, setDiagnostics] = useState<DiagnosticEntry[]>([]);
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -83,8 +102,9 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
     Promise.all([
       toolRepository.getToolFiles(tool.id),
       toolRepository.getToolStorage(tool.id),
+      toolRepository.getReadingProgress(tool.id, activeEntryPath),
     ])
-      .then(([records, storedEntries]) => {
+      .then(([records, storedEntries, progress]) => {
         if (cancelled) return;
         if (!records || records.length === 0) {
           setError('Không tìm thấy dữ liệu công cụ.');
@@ -92,6 +112,9 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
         } else {
           setFiles(records);
           setInitialStorage(storedEntries);
+          setInitialScroll(
+            progress ? { scrollY: progress.scrollY, scrollRatio: progress.scrollRatio } : null
+          );
           setStorageKeyCount(Object.keys(storedEntries).length);
         }
         setLoading(false);
@@ -105,7 +128,7 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [tool.id, reloadTrigger]);
+  }, [tool.id, activeEntryPath, reloadTrigger]);
 
   // Listen to strictly validated postMessage events from this exact runner iframe
   useEffect(() => {
@@ -151,6 +174,17 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
               ]);
             });
         }
+      } else if (data.type === '__YUNZY_SCROLL_SYNC__') {
+        const msg = data as ScrollSyncMessage;
+        if (typeof msg.scrollY === 'number') {
+          toolRepository.saveReadingProgress({
+            toolId: tool.id,
+            entryPath: activeEntryPath,
+            kind: 'web',
+            scrollY: msg.scrollY,
+            scrollRatio: typeof msg.scrollRatio === 'number' ? msg.scrollRatio : 0,
+          });
+        }
       } else if (data.type === '__YUNZY_RUNTIME_DIAGNOSTIC__') {
         const diag = data as RuntimeDiagnosticMessage;
         setDiagnostics((prev) => [
@@ -171,7 +205,7 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [tool.id, capabilityToken]);
+  }, [tool.id, activeEntryPath, capabilityToken]);
 
   const htmlCandidates = useMemo(() => {
     if (!files) return [];
@@ -187,13 +221,14 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
         toolId: tool.id,
         capabilityToken,
         initialLocalStorage: initialStorage,
+        initialScroll,
       });
     } catch (err) {
       return {
         error: err instanceof Error ? err.message : 'Lỗi khởi tạo.',
       };
     }
-  }, [files, activeEntryPath, tool.id, capabilityToken, initialStorage]);
+  }, [files, activeEntryPath, tool.id, capabilityToken, initialStorage, initialScroll]);
 
   const handleClearToolStorage = async () => {
     await toolRepository.applyToolStorageMutation(tool.id, { op: 'clear' });
@@ -237,49 +272,75 @@ export const SandboxedHtmlRunner: React.FC<SandboxedHtmlRunnerProps> = ({
 
   return (
     <div className="relative flex flex-col flex-1 w-full h-full min-h-0">
-      {/* Floating Compact Controls (Top-Right Corner) */}
-      <div className="absolute top-1.5 right-2 z-20 flex items-center gap-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl px-1.5 py-1 shadow-xs">
-        {diagnostics.length > 0 && (
+      {/* Floating Controls (Workspace tab menu handles Info & Reload when controlled) */}
+      {onShowInfoPopoverChange ? (
+        diagnostics.length > 0 &&
+        !showInfoPopover && (
           <button
             type="button"
             onClick={() => setShowInfoPopover(true)}
             aria-label="Cảnh báo chẩn đoán công cụ"
             title={`${diagnostics.length} thông báo chẩn đoán`}
-            className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-semibold"
+            className={`absolute ${
+              isBottomTabBar ? 'bottom-2' : 'top-1.5'
+            } right-2.5 z-20 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl text-amber-700 dark:text-amber-300 text-[11px] font-bold shadow-sm`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>{diagnostics.length}</span>
           </button>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setShowInfoPopover((prev) => !prev)}
-          aria-label="Thông tin gói và bảo mật"
-          title="Thông tin & Bảo mật"
-          className={`p-1.5 rounded-lg transition ${
-            showInfoPopover
-              ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
-              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-          }`}
+        )
+      ) : (
+        <div
+          className={`absolute ${
+            isBottomTabBar ? 'bottom-2' : 'top-1.5'
+          } right-2 z-20 flex items-center gap-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl px-1.5 py-1 shadow-xs`}
         >
-          <Info className="w-3.5 h-3.5" />
-        </button>
+          {diagnostics.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowInfoPopover(true)}
+              aria-label="Cảnh báo chẩn đoán công cụ"
+              title={`${diagnostics.length} thông báo chẩn đoán`}
+              className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-semibold"
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>{diagnostics.length}</span>
+            </button>
+          )}
 
-        <button
-          type="button"
-          onClick={onReloadRequest}
-          aria-label="Làm mới công cụ"
-          title="Làm mới"
-          className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setShowInfoPopover((prev) => !prev)}
+            aria-label="Thông tin gói và bảo mật"
+            title="Thông tin & Bảo mật"
+            className={`p-1.5 rounded-lg transition ${
+              showInfoPopover
+                ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onReloadRequest}
+            aria-label="Làm mới công cụ"
+            title="Làm mới"
+            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Info Popover for Entry Point, File Metadata, Vendored Libs, Isolated Storage & Diagnostics */}
       {showInfoPopover && (
-        <div className="absolute top-12 right-3 z-30 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-4 shadow-xl text-xs space-y-3">
+        <div
+          className={`absolute ${
+            isBottomTabBar ? 'bottom-3' : 'top-3'
+          } right-3 z-30 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-4 shadow-xl text-xs space-y-3`}
+        >
           <div className="flex items-center justify-between">
             <span className="font-bold text-slate-900 dark:text-white">
               Thông tin &amp; Bảo mật

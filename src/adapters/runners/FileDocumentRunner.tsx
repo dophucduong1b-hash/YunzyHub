@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import {
   Code2,
@@ -12,7 +12,11 @@ import mammoth from 'mammoth';
 import { marked } from 'marked';
 import { motion } from 'motion/react';
 import { LightCodeEditor } from '../../components/LightCodeEditor';
-import { formatBytes, toolRepository } from '../../repositories/toolRepository';
+import {
+  formatBytes,
+  toolRepository,
+  type ReadingProgressRecord,
+} from '../../repositories/toolRepository';
 import type { ToolFileRecord, ToolManifest } from '../../types/models';
 import { detectCodeLanguage } from '../../utils/codeSyntax';
 import { haptic } from '../../utils/haptics';
@@ -70,9 +74,16 @@ export const FileDocumentRunner: React.FC<FileDocumentRunnerProps> = ({
   const [fileRecord, setFileRecord] = useState<ToolFileRecord | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [docxHtml, setDocxHtml] = useState<string | null>(null);
+  const [initialProgress, setInitialProgress] = useState<ReadingProgressRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const docScrollRef = useRef<HTMLDivElement | null>(null);
+  const csvScrollRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const latestTextScrollRef = useRef(0);
+  const latestTextScrolledRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -81,6 +92,8 @@ export const FileDocumentRunner: React.FC<FileDocumentRunnerProps> = ({
     setLoading(true);
     setError(null);
     setDocxHtml(null);
+    setInitialProgress(null);
+    latestTextScrolledRef.current = false;
 
     toolRepository
       .getToolFiles(tool.id)
@@ -92,6 +105,10 @@ export const FileDocumentRunner: React.FC<FileDocumentRunnerProps> = ({
           setError('Không tìm thấy dữ liệu tệp trong bộ nhớ cục bộ.');
           return;
         }
+        const saved = await toolRepository.getReadingProgress(tool.id, entry.path);
+        if (!active) return;
+        setInitialProgress(saved);
+        latestTextScrollRef.current = saved?.scrollY || 0;
         setFileRecord(entry);
 
         const lowerPath = entry.path.toLowerCase();
@@ -223,6 +240,95 @@ export const FileDocumentRunner: React.FC<FileDocumentRunnerProps> = ({
   const isAudio = /\.(mp3|wav|ogg|m4a)$/i.test(lowerPath);
   const isVideo = /\.(mp4|webm)$/i.test(lowerPath);
 
+  useEffect(() => {
+    if (loading || !fileRecord) return;
+    const entryPath = fileRecord.path;
+
+    let timer: number | null = null;
+    let restoreSettled = !(initialProgress && (initialProgress.scrollY > 0 || initialProgress.scrollRatio > 0.001));
+
+    const activeContainer =
+      isDocx || isMarkdown ? docScrollRef.current : isCsv ? csvScrollRef.current : null;
+    const kind: ReadingProgressRecord['kind'] =
+      isDocx || isMarkdown ? 'doc' : isCsv ? 'csv' : isAudio ? 'audio' : 'text';
+
+    if (activeContainer && initialProgress && !restoreSettled) {
+      requestAnimationFrame(() => {
+        const el = activeContainer;
+        const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+        let y = 0;
+        if (initialProgress.scrollY > 0 && initialProgress.scrollY <= maxScroll) {
+          y = initialProgress.scrollY;
+        } else if (initialProgress.scrollRatio > 0.001 && maxScroll > 0) {
+          y = Math.round(initialProgress.scrollRatio * maxScroll);
+        }
+        if (y > 0) el.scrollTop = y;
+        restoreSettled = true;
+      });
+    } else if (isDocx || isMarkdown || isCsv) {
+      restoreSettled = true;
+    }
+
+    const flushProgress = () => {
+      if (!restoreSettled && !fileRecord.isText && !isAudio) return;
+      if (activeContainer) {
+        const y = Math.max(0, Math.round(activeContainer.scrollTop));
+        const maxScroll = Math.max(0, activeContainer.scrollHeight - activeContainer.clientHeight);
+        const ratio = maxScroll > 0 ? Math.min(1, y / maxScroll) : 0;
+        toolRepository.saveReadingProgress({
+          toolId: tool.id,
+          entryPath,
+          kind,
+          scrollY: y,
+          scrollRatio: ratio,
+        });
+      } else if (isAudio && audioRef.current) {
+        const ms = Math.max(0, Math.round(audioRef.current.currentTime * 1000));
+        const dur = audioRef.current.duration;
+        const ratio = dur && isFinite(dur) && dur > 0 ? Math.min(1, audioRef.current.currentTime / dur) : 0;
+        toolRepository.saveReadingProgress({
+          toolId: tool.id,
+          entryPath,
+          kind: 'audio',
+          scrollY: ms,
+          scrollRatio: ratio,
+        });
+      } else if (fileRecord.isText && latestTextScrolledRef.current) {
+        toolRepository.saveReadingProgress({
+          toolId: tool.id,
+          entryPath,
+          kind: 'text',
+          scrollY: latestTextScrollRef.current,
+          scrollRatio: 0,
+        });
+      }
+    };
+
+    const scheduleFlush = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        flushProgress();
+      }, 450);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushProgress();
+    };
+
+    activeContainer?.addEventListener('scroll', scheduleFlush, { passive: true });
+    window.addEventListener('pagehide', flushProgress);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      flushProgress();
+      activeContainer?.removeEventListener('scroll', scheduleFlush);
+      window.removeEventListener('pagehide', flushProgress);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [loading, fileRecord, initialProgress, isDocx, isMarkdown, isCsv, isAudio, tool.id, docxHtml, renderedMarkdownHtml]);
+
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[#F5F5F7] dark:bg-[#0A0A0C] overflow-hidden">
       {/* Compact File Action Bar */}
@@ -329,21 +435,21 @@ export const FileDocumentRunner: React.FC<FileDocumentRunnerProps> = ({
           </object>
         </div>
       ) : isDocx && docxHtml !== null ? (
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+        <div ref={docScrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6">
           <article
             className="max-w-3xl mx-auto rounded-2xl bg-white text-[#17130F] border border-black/[0.06] shadow-xs p-5 sm:p-8 space-y-3 text-[15px] leading-relaxed [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-neutral-200 [&_td]:p-2 [&_th]:border [&_th]:border-neutral-200 [&_th]:p-2 [&_img]:max-w-full [&_img]:rounded-lg"
             dangerouslySetInnerHTML={{ __html: docxHtml }}
           />
         </div>
       ) : isMarkdown && renderedMarkdownHtml !== null ? (
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+        <div ref={docScrollRef} className="flex-1 overflow-y-auto p-3 sm:p-6">
           <article
             className="max-w-3xl mx-auto rounded-2xl bg-white dark:bg-[#161618] text-neutral-900 dark:text-neutral-100 border border-black/[0.06] dark:border-white/[0.08] shadow-xs p-5 sm:p-8 space-y-3 text-[15px] leading-relaxed [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-3 [&_blockquote]:border-[#FF6B35] [&_blockquote]:pl-3.5 [&_blockquote]:text-neutral-500 [&_pre]:rounded-xl [&_pre]:bg-[#FAF9F6] [&_pre]:text-[#17130F] [&_pre]:p-3.5 [&_pre]:overflow-x-auto [&_pre]:font-mono [&_pre]:text-xs [&_code]:font-mono [&_code]:text-[13px] [&_a]:text-[#007AFF] [&_a]:underline [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-black/10 [&_td]:dark:border-white/10 [&_td]:p-2 [&_th]:border [&_th]:border-black/10 [&_th]:dark:border-white/10 [&_th]:p-2"
             dangerouslySetInnerHTML={{ __html: renderedMarkdownHtml }}
           />
         </div>
       ) : isCsv && csvRows ? (
-        <div className="flex-1 overflow-auto p-3 sm:p-5">
+        <div ref={csvScrollRef} className="flex-1 overflow-auto p-3 sm:p-5">
           <div className="rounded-2xl border border-black/[0.07] dark:border-white/[0.08] bg-white dark:bg-[#161618] overflow-auto">
             <table className="w-full text-left border-collapse text-xs font-mono">
               {csvRows.length > 0 && (
@@ -390,7 +496,29 @@ export const FileDocumentRunner: React.FC<FileDocumentRunnerProps> = ({
           <p className="text-sm font-semibold text-neutral-900 dark:text-white">
             {fileRecord.path}
           </p>
-          <audio controls src={blobUrl} className="w-full max-w-md" />
+          <audio
+            ref={audioRef}
+            controls
+            src={blobUrl}
+            onLoadedMetadata={(e) => {
+              const el = e.currentTarget;
+              const savedSec = (initialProgress?.scrollY || 0) / 1000;
+              if (savedSec > 0 && el.duration && savedSec < el.duration - 1) {
+                el.currentTime = savedSec;
+              }
+            }}
+            onPause={(e) => {
+              const el = e.currentTarget;
+              toolRepository.saveReadingProgress({
+                toolId: tool.id,
+                entryPath: fileRecord.path,
+                kind: 'audio',
+                scrollY: Math.round(el.currentTime * 1000),
+                scrollRatio: el.duration > 0 ? Math.min(1, el.currentTime / el.duration) : 0,
+              });
+            }}
+            className="w-full max-w-md"
+          />
         </div>
       ) : isVideo && blobUrl ? (
         <div className="flex-1 flex items-center justify-center p-3 bg-black">
@@ -410,6 +538,11 @@ export const FileDocumentRunner: React.FC<FileDocumentRunnerProps> = ({
             language={detectCodeLanguage(fileRecord.path)}
             minHeightClass="flex-1 min-h-0"
             ariaLabel={`Xem tệp ${fileRecord.path}`}
+            initialScrollTop={initialProgress?.scrollY || 0}
+            onScrollTopChange={(y) => {
+              latestTextScrollRef.current = y;
+              latestTextScrolledRef.current = true;
+            }}
           />
         </div>
       ) : (

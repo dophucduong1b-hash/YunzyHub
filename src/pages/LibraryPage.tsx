@@ -1,8 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  FileArchive,
-  FileCode,
-  Globe,
   LayoutGrid,
   List,
   MoreHorizontal,
@@ -12,7 +9,12 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { HapticTapOverlay } from '../components/HapticTapOverlay';
-import { ToolCard } from '../components/ToolCard';
+import { renderToolTypeGlyph, ToolCard } from '../components/ToolCard';
+import {
+  type ContextMenuPoint,
+  ToolContextMenu,
+  useLongPress,
+} from '../components/ToolContextMenu';
 import type {
   LibraryViewMode,
   ToolManifest,
@@ -29,8 +31,89 @@ interface LibraryPageProps {
   onLaunchTool: (tool: ToolManifest) => void;
   onToggleFavorite: (tool: ToolManifest) => void;
   onEditTool: (tool: ToolManifest) => void;
+  onEditCode?: (tool: ToolManifest) => void;
+  onShareTool?: (tool: ToolManifest) => void;
+  onDeleteTool?: (tool: ToolManifest) => void;
   onOpenImportModal: (mode: 'file' | 'create' | 'url') => void;
 }
+
+interface LibraryListRowProps {
+  tool: ToolManifest;
+  onLaunch: (tool: ToolManifest) => void;
+  onToggleFavorite: (tool: ToolManifest) => void;
+  onEdit: (tool: ToolManifest) => void;
+  onOpenContext: (tool: ToolManifest, point: ContextMenuPoint) => void;
+}
+
+const LibraryListRow: React.FC<LibraryListRowProps> = ({
+  tool,
+  onLaunch,
+  onToggleFavorite,
+  onEdit,
+  onOpenContext,
+}) => {
+  const longPress = useLongPress((pt) => onOpenContext(tool, pt));
+  return (
+    <tr
+      onPointerDown={longPress.onPointerDown}
+      onPointerMove={longPress.onPointerMove}
+      onPointerUp={longPress.onPointerUp}
+      onPointerCancel={longPress.onPointerCancel}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpenContext(tool, { x: e.clientX, y: e.clientY });
+      }}
+      onClick={() => {
+        if (longPress.consumeLongPress()) return;
+        onLaunch(tool);
+      }}
+      className="cursor-pointer ios-no-callout hover:bg-black/[0.025] dark:hover:bg-white/[0.04] active:bg-black/[0.05] dark:active:bg-white/[0.07] transition-colors"
+    >
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="shrink-0 w-8 h-8 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center">
+            {renderToolTypeGlyph(tool, 'w-4 h-4')}
+          </span>
+          <span className="font-semibold text-[13px] text-neutral-900 dark:text-neutral-100 truncate">
+            {tool.name}
+          </span>
+        </div>
+      </td>
+      <td
+        className="py-2.5 px-3 text-right whitespace-nowrap"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="inline-flex items-center gap-1">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.84 }}
+            onClick={() => onToggleFavorite(tool)}
+            aria-label={tool.favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+            className={`relative p-2 rounded-lg transition-colors ${
+              tool.favorite
+                ? 'text-amber-500 dark:text-amber-400'
+                : 'text-neutral-400 hover:text-neutral-800 dark:hover:text-white'
+            }`}
+          >
+            <HapticTapOverlay />
+            <Star className={`w-4 h-4 ${tool.favorite ? 'fill-current' : ''}`} />
+          </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.84 }}
+            onClick={() => onEdit(tool)}
+            aria-label={`Tùy chọn ${tool.name}`}
+            className="relative p-2 rounded-lg text-neutral-400 hover:text-neutral-800 dark:hover:text-white transition-colors"
+          >
+            <HapticTapOverlay />
+            <MoreHorizontal className="w-4 h-4" />
+          </motion.button>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 type SortKey = 'updated' | 'recent' | 'name';
 
@@ -49,12 +132,19 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   onLaunchTool,
   onToggleFavorite,
   onEditTool,
+  onEditCode,
+  onShareTool,
+  onDeleteTool,
   onOpenImportModal,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<'all' | ToolType>('all');
   const [sortBy, setSortBy] = useState<SortKey>('updated');
+  const [listMenu, setListMenu] = useState<{
+    tool: ToolManifest;
+    anchor: ContextMenuPoint;
+  } | null>(null);
 
   const openTabIds = useMemo(
     () => new Set(workspaceTabs.map((w) => w.toolId)),
@@ -300,6 +390,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
               onLaunch={onLaunchTool}
               onToggleFavorite={onToggleFavorite}
               onEdit={onEditTool}
+              onEditCode={onEditCode}
+              onShare={onShareTool}
+              onDelete={onDeleteTool}
             />
           ))}
         </div>
@@ -308,66 +401,31 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
           <table className="w-full text-left border-collapse text-xs">
             <tbody className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
               {filteredTools.map((tool) => (
-                <tr
+                <LibraryListRow
                   key={tool.id}
-                  onClick={() => onLaunchTool(tool)}
-                  className="cursor-pointer hover:bg-black/[0.025] dark:hover:bg-white/[0.04] active:bg-black/[0.05] dark:active:bg-white/[0.07] transition-colors"
-                >
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="shrink-0 w-8 h-8 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center">
-                        {tool.type === 'html' ? (
-                          <FileCode className="w-4 h-4 text-[#007AFF] dark:text-[#0A84FF]" />
-                        ) : tool.type === 'zip' ? (
-                          <FileArchive className="w-4 h-4 text-neutral-700 dark:text-neutral-200" />
-                        ) : (
-                          <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        )}
-                      </span>
-                      <span className="font-semibold text-[13px] text-neutral-900 dark:text-neutral-100 truncate">
-                        {tool.name}
-                      </span>
-                    </div>
-                  </td>
-                  <td
-                    className="py-2.5 px-3 text-right whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="inline-flex items-center gap-1">
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.84 }}
-                        onClick={() => onToggleFavorite(tool)}
-                        aria-label={tool.favorite ? 'Bỏ yêu thích' : 'Yêu thích'}
-                        className={`relative p-2 rounded-lg transition-colors ${
-                          tool.favorite
-                            ? 'text-amber-500 dark:text-amber-400'
-                            : 'text-neutral-400 hover:text-neutral-800 dark:hover:text-white'
-                        }`}
-                      >
-                        <HapticTapOverlay />
-                        <Star
-                          className={`w-4 h-4 ${tool.favorite ? 'fill-current' : ''}`}
-                        />
-                      </motion.button>
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.84 }}
-                        onClick={() => onEditTool(tool)}
-                        aria-label={`Tùy chọn ${tool.name}`}
-                        className="relative p-2 rounded-lg text-neutral-400 hover:text-neutral-800 dark:hover:text-white transition-colors"
-                      >
-                        <HapticTapOverlay />
-                        <MoreHorizontal className="w-4 h-4" />
-                      </motion.button>
-                    </div>
-                  </td>
-                </tr>
+                  tool={tool}
+                  onLaunch={onLaunchTool}
+                  onToggleFavorite={onToggleFavorite}
+                  onEdit={onEditTool}
+                  onOpenContext={(target, pt) => setListMenu({ tool: target, anchor: pt })}
+                />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <ToolContextMenu
+        tool={listMenu?.tool ?? null}
+        anchor={listMenu?.anchor ?? null}
+        onClose={() => setListMenu(null)}
+        onLaunch={onLaunchTool}
+        onShare={onShareTool}
+        onEditCode={onEditCode}
+        onToggleFavorite={onToggleFavorite}
+        onEdit={onEditTool}
+        onDelete={onDeleteTool}
+      />
     </div>
   );
 };

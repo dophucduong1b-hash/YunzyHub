@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   getLanguageMeta,
   highlightCodeLight,
@@ -14,6 +14,8 @@ interface LightCodeEditorProps {
   minHeightClass?: string;
   ariaLabel?: string;
   headerAction?: React.ReactNode;
+  initialScrollTop?: number;
+  onScrollTopChange?: (scrollTop: number) => void;
 }
 
 /**
@@ -30,10 +32,13 @@ export const LightCodeEditor: React.FC<LightCodeEditorProps> = ({
   minHeightClass = 'h-[260px]',
   ariaLabel = 'Trình soạn thảo mã nguồn',
   headerAction,
+  initialScrollTop = 0,
+  onScrollTopChange,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const preRef = useRef<HTMLPreElement | null>(null);
   const gutterRef = useRef<HTMLDivElement | null>(null);
+  const restoredInitialRef = useRef(false);
 
   const langMeta = getLanguageMeta(language);
 
@@ -57,7 +62,25 @@ export const LightCodeEditor: React.FC<LightCodeEditorProps> = ({
     if (gutterRef.current) {
       gutterRef.current.scrollTop = ta.scrollTop;
     }
+    onScrollTopChange?.(Math.max(0, Math.round(ta.scrollTop)));
   };
+
+  useEffect(() => {
+    restoredInitialRef.current = false;
+  }, [initialScrollTop]);
+
+  useEffect(() => {
+    if (restoredInitialRef.current || !initialScrollTop || initialScrollTop <= 0) return;
+    const ta = textareaRef.current;
+    if (!ta) return;
+    restoredInitialRef.current = true;
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) return;
+      textareaRef.current.scrollTop = initialScrollTop;
+      if (preRef.current) preRef.current.scrollTop = textareaRef.current.scrollTop;
+      if (gutterRef.current) gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    });
+  }, [initialScrollTop, value]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (readOnly) return;

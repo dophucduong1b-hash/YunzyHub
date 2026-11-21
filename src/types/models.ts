@@ -1,8 +1,14 @@
+import type { AppFontFamily } from '../utils/fonts';
+
+export type { AppFontFamily };
+
 export type ToolType = 'html' | 'zip' | 'url' | 'file';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type LibraryViewMode = 'grid' | 'list';
+
+export type WorkspaceTabBarPosition = 'top' | 'bottom';
 
 export type NavSection =
   | 'dashboard'
@@ -74,6 +80,19 @@ export interface AppPreferences {
   reducedMotion?: boolean;
   swipeBackHome?: boolean;
   openAfterImportDefault?: boolean;
+  fontFamily?: AppFontFamily;
+  fontScale?: number;
+  workspaceTabBarPosition?: WorkspaceTabBarPosition;
+}
+
+export interface ReadingProgressRecord {
+  id: string;
+  toolId: string;
+  entryPath: string;
+  kind: 'web' | 'doc' | 'text' | 'csv' | 'audio';
+  scrollY: number;
+  scrollRatio: number;
+  updatedAt: string;
 }
 
 export interface ToolStorageRecord {

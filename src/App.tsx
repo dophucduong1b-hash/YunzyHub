@@ -31,22 +31,26 @@ import {
   DEFAULT_PREFERENCES,
   parsePreferenceValue,
   toolRepository,
+  type AppFontFamily,
   type LibraryViewMode,
   type ThemeMode,
+  type WorkspaceTabBarPosition,
 } from './repositories/toolRepository';
 import type { NavSection, ToolManifest } from './types/models';
+import { normalizeFontFamily, resolveFontStack } from './utils/fonts';
 import { haptic } from './utils/haptics';
+import { shareToolDocument } from './utils/shareTool';
 
 export type ImportModalMode = 'file' | 'create' | 'url';
 
 export const PRIMARY_NAV_ITEMS: Array<{
-  id: Extract<NavSection, 'dashboard' | 'workspace' | 'search' | 'settings'>;
+  id: Extract<NavSection, 'dashboard' | 'workspace' | 'library' | 'settings'>;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { id: 'dashboard', label: 'Home', icon: Home },
   { id: 'workspace', label: 'Không gian', icon: Layers },
-  { id: 'search', label: 'Tìm kiếm', icon: Search },
+  { id: 'library', label: 'Thư viện', icon: LayoutGrid },
   { id: 'settings', label: 'Cài đặt', icon: Settings },
 ];
 
@@ -61,11 +65,11 @@ const DOCK_SPRING = {
 
 const NAV_ORDER: Record<NavSection, number> = {
   dashboard: 0,
-  library: 1,
-  favorites: 1,
-  workspace: 2,
-  search: 3,
-  settings: 4,
+  workspace: 1,
+  library: 2,
+  favorites: 2,
+  settings: 3,
+  search: 4,
 };
 
 export default function App() {
@@ -82,6 +86,8 @@ export default function App() {
   const [codeEditingTool, setCodeEditingTool] = useState<ToolManifest | null>(
     null
   );
+  const [pendingDeleteTool, setPendingDeleteTool] = useState<ToolManifest | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [swipeHomeProgress, setSwipeHomeProgress] = useState(0);
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -151,6 +157,33 @@ export default function App() {
     'openAfterImportDefault',
     DEFAULT_PREFERENCES.openAfterImportDefault ?? true
   );
+  const rawFontFamily = parsePreferenceValue<string>(
+    preferences,
+    'fontFamily',
+    DEFAULT_PREFERENCES.fontFamily ?? 'system'
+  );
+  const fontFamily: AppFontFamily = normalizeFontFamily(rawFontFamily);
+  const fontScale = Math.min(
+    1.3,
+    Math.max(
+      0.85,
+      Number(
+        parsePreferenceValue<number>(
+          preferences,
+          'fontScale',
+          DEFAULT_PREFERENCES.fontScale ?? 1.0
+        )
+      ) || 1.0
+    )
+  );
+  const workspaceTabBarPosition =
+    parsePreferenceValue<string>(
+      preferences,
+      'workspaceTabBarPosition',
+      DEFAULT_PREFERENCES.workspaceTabBarPosition ?? 'top'
+    ) === 'bottom'
+      ? ('bottom' as WorkspaceTabBarPosition)
+      : ('top' as WorkspaceTabBarPosition);
 
   useEffect(() => {
     haptic.setEnabled(hapticsEnabled);
@@ -161,6 +194,25 @@ export default function App() {
       document.documentElement.classList.toggle('reduce-motion', reducedMotion);
     }
   }, [reducedMotion]);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty(
+        '--app-font-family',
+        resolveFontStack(fontFamily)
+      );
+      document.documentElement.style.setProperty(
+        '--app-font-scale',
+        String(fontScale)
+      );
+    }
+  }, [fontFamily, fontScale]);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = window.setTimeout(() => setToastMessage(null), 2200);
+    return () => window.clearTimeout(t);
+  }, [toastMessage]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -227,6 +279,18 @@ export default function App() {
   const handleOpenCodeEditor = (tool: ToolManifest) => {
     haptic.light();
     setCodeEditingTool(tool);
+  };
+
+  const handleShareTool = async (tool: ToolManifest) => {
+    try {
+      const msg = await shareToolDocument(tool);
+      if (msg) setToastMessage(msg);
+    } catch (err) {
+      haptic.warning();
+      setToastMessage(
+        err instanceof Error ? err.message : 'Không thể chia sẻ công cụ.'
+      );
+    }
   };
 
   const handleCodeSaved = async () => {
@@ -387,14 +451,14 @@ export default function App() {
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigateTo('library')}
+                onClick={() => navigateTo('search')}
                 className={`relative w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors whitespace-nowrap ${
-                  activeSection === 'library'
+                  activeSection === 'search'
                     ? 'text-white dark:text-neutral-950 font-semibold'
                     : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
                 }`}
               >
-                {activeSection === 'library' && (
+                {activeSection === 'search' && (
                   <motion.span
                     layoutId="desktop-nav-pill"
                     transition={DOCK_SPRING}
@@ -402,20 +466,9 @@ export default function App() {
                   />
                 )}
                 <span className="flex items-center gap-3">
-                  <LayoutGrid className="w-4 h-4 shrink-0" />
-                  <span>Thư viện</span>
+                  <Search className="w-4 h-4 shrink-0" />
+                  <span>Tìm kiếm</span>
                 </span>
-                {tools.length > 0 && (
-                  <span
-                    className={`font-mono tabular-nums text-[11px] ${
-                      activeSection === 'library'
-                        ? 'text-white/80 dark:text-neutral-700'
-                        : 'text-neutral-500 dark:text-neutral-400'
-                    }`}
-                  >
-                    {tools.length}
-                  </span>
-                )}
               </motion.button>
             </div>
           </nav>
@@ -483,6 +536,11 @@ export default function App() {
                             haptic.light();
                             setEditingTool(t);
                           }}
+                          onEditCode={(t) => {
+                            if (t.type !== 'url') handleOpenCodeEditor(t);
+                          }}
+                          onShareTool={handleShareTool}
+                          onDeleteTool={(t) => setPendingDeleteTool(t)}
                           onOpenImportModal={(mode) => {
                             haptic.light();
                             setImportModalState({ open: true, mode });
@@ -506,6 +564,11 @@ export default function App() {
                             haptic.light();
                             setEditingTool(t);
                           }}
+                          onEditCode={(t) => {
+                            if (t.type !== 'url') handleOpenCodeEditor(t);
+                          }}
+                          onShareTool={handleShareTool}
+                          onDeleteTool={(t) => setPendingDeleteTool(t)}
                           onOpenImportModal={(mode) => {
                             haptic.light();
                             setImportModalState({ open: true, mode });
@@ -524,6 +587,11 @@ export default function App() {
                             haptic.light();
                             setEditingTool(t);
                           }}
+                          onEditCode={(t) => {
+                            if (t.type !== 'url') handleOpenCodeEditor(t);
+                          }}
+                          onShareTool={handleShareTool}
+                          onDeleteTool={(t) => setPendingDeleteTool(t)}
                         />
                       )}
 
@@ -534,6 +602,18 @@ export default function App() {
                           onThemeChange={(nextTheme) => {
                             haptic.selection();
                             toolRepository.setPreference('theme', nextTheme);
+                          }}
+                          fontFamily={fontFamily}
+                          onFontFamilyChange={(font) => {
+                            toolRepository.setPreference('fontFamily', font);
+                          }}
+                          fontScale={fontScale}
+                          onFontScaleChange={(scale) => {
+                            toolRepository.setPreference('fontScale', scale);
+                          }}
+                          workspaceTabBarPosition={workspaceTabBarPosition}
+                          onWorkspaceTabBarPositionChange={(pos) => {
+                            toolRepository.setPreference('workspaceTabBarPosition', pos);
                           }}
                           hapticsEnabled={hapticsEnabled}
                           onHapticsEnabledChange={(enabled) => {
@@ -586,6 +666,7 @@ export default function App() {
                     workspaceTabs={workspaceTabs}
                     activeTabId={activeTabId}
                     swipeBackHome={swipeBackHome}
+                    tabBarPosition={workspaceTabBarPosition}
                     onSelectTab={(tabId) => {
                       haptic.selection();
                       toolRepository.setActiveWorkspaceTab(tabId);
@@ -599,6 +680,7 @@ export default function App() {
                       toolRepository.closeAllWorkspaceTabs();
                     }}
                     onLaunchTool={handleLaunchTool}
+                    onShareTool={handleShareTool}
                     onOpenImportModal={(mode) => {
                       haptic.light();
                       setImportModalState({ open: true, mode });
@@ -619,7 +701,7 @@ export default function App() {
           </main>
         </div>
 
-        {/* Pinned iOS Floating Rounded Blur Mobile Dock (anchored inside fixed app-shell so it never drifts up) */}
+        {/* Pinned iOS Floating Concentric Circle-Pill Blur Mobile Dock */}
         <AnimatePresence initial={false}>
           {!hasRunningWorkspaceTool && (
             <motion.nav
@@ -629,7 +711,7 @@ export default function App() {
               exit={{ y: 20, opacity: 0 }}
               transition={{ duration: 0.2, ease: APPLE_EASE }}
               aria-label="Điều hướng di động"
-              className="lg:hidden absolute ios-dock-bottom left-5 right-5 z-30 mx-auto max-w-[368px] rounded-[28px] border border-black/[0.08] dark:border-white/[0.12] bg-white/82 dark:bg-[#1C1C1E]/85 backdrop-blur-2xl backdrop-saturate-[180%] shadow-[0_8px_30px_rgba(0,0,0,0.10),0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_14px_38px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] p-1.5 grid grid-cols-4 gap-1 will-change-transform"
+              className="lg:hidden absolute ios-dock-bottom left-4 right-4 z-30 mx-auto max-w-[380px] rounded-full border border-black/[0.08] dark:border-white/[0.12] bg-white/82 dark:bg-[#1C1C1E]/85 backdrop-blur-2xl backdrop-saturate-[180%] shadow-[0_8px_30px_rgba(0,0,0,0.10),0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_14px_38px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] p-[5px] grid grid-cols-4 gap-1 will-change-transform"
             >
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -641,15 +723,11 @@ export default function App() {
                     key={item.id}
                     type="button"
                     aria-current={isActive ? 'page' : undefined}
-                    aria-label={
-                      item.id === 'search' && isActive
-                        ? 'Tìm kiếm — chạm lại để mở bàn phím'
-                        : item.label
-                    }
-                    whileTap={{ scale: 0.94 }}
+                    aria-label={item.label}
+                    whileTap={{ scale: 0.93 }}
                     transition={{ duration: 0.14, ease: APPLE_EASE }}
                     onClick={() => navigateTo(item.id)}
-                    className={`relative min-h-[50px] flex flex-col items-center justify-center gap-0.5 rounded-[22px] px-1 py-1.5 text-[11px] leading-tight whitespace-nowrap select-none transition-colors ${
+                    className={`relative min-h-[52px] flex flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 text-[11px] leading-tight whitespace-nowrap select-none transition-colors ${
                       isActive
                         ? 'text-neutral-950 dark:text-white font-semibold'
                         : 'text-neutral-500 dark:text-neutral-400 font-medium'
@@ -660,7 +738,7 @@ export default function App() {
                       <motion.span
                         layoutId="ios-dock-pill"
                         transition={DOCK_SPRING}
-                        className="absolute inset-0 rounded-[22px] bg-black/[0.07] dark:bg-white/[0.14] -z-10 will-change-transform"
+                        className="absolute inset-0 rounded-full bg-black/[0.07] dark:bg-white/[0.14] border border-white/70 dark:border-white/[0.14] -z-10 will-change-transform"
                       />
                     )}
                     <span className="relative flex items-center justify-center">
@@ -676,6 +754,63 @@ export default function App() {
                 );
               })}
             </motion.nav>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Confirmation Dialog from Context Menu */}
+        {pendingDeleteTool && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4"
+            onClick={() => setPendingDeleteTool(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs rounded-2xl bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.1] p-5 shadow-2xl space-y-3"
+            >
+              <h3 className="text-sm font-semibold text-neutral-950 dark:text-white">
+                Xóa công cụ?
+              </h3>
+              <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                Bạn có chắc muốn xóa "{pendingDeleteTool.name}" khỏi thư viện?
+              </p>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setPendingDeleteTool(null)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-neutral-600 dark:text-neutral-300"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const id = pendingDeleteTool.id;
+                    setPendingDeleteTool(null);
+                    haptic.warning();
+                    await toolRepository.deleteTool(id);
+                    setToastMessage('Đã xóa công cụ');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 text-white"
+                >
+                  Xóa
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Lightweight Toast */}
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              key="app-toast"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#17130F]/90 dark:bg-white/95 text-white dark:text-[#17130F] text-xs font-semibold shadow-xl backdrop-blur-xl pointer-events-none whitespace-nowrap"
+            >
+              {toastMessage}
+            </motion.div>
           )}
         </AnimatePresence>
 

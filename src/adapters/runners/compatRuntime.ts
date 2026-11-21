@@ -8,6 +8,18 @@ export interface CompatBootstrapOptions {
   toolId: string;
   capabilityToken: string;
   initialLocalStorage: Record<string, string>;
+  initialScroll?: {
+    scrollY: number;
+    scrollRatio: number;
+  } | null;
+}
+
+export interface ScrollSyncMessage {
+  type: '__YUNZY_SCROLL_SYNC__';
+  toolId: string;
+  token: string;
+  scrollY: number;
+  scrollRatio: number;
 }
 
 export interface StorageSyncMessage {
@@ -73,12 +85,16 @@ export function buildCompatibilityBootstrapScript(
   const safeInitialStorage = escapeJsonForInlineScript(
     options.initialLocalStorage || {}
   );
+  const safeInitialScroll = escapeJsonForInlineScript(
+    options.initialScroll || null
+  );
 
   return `(function() {
   "use strict";
   var TOOL_ID = ${safeToolId};
   var CAP_TOKEN = ${safeToken};
   var INITIAL_LOCAL_STORAGE = ${safeInitialStorage};
+  var INITIAL_SCROLL = ${safeInitialScroll};
   var MAX_KEYS = ${STORAGE_LIMITS.MAX_KEYS_PER_TOOL};
   var MAX_KEY_LEN = ${STORAGE_LIMITS.MAX_KEY_LENGTH};
   var MAX_TOTAL_BYTES = ${STORAGE_LIMITS.MAX_TOTAL_BYTES_PER_TOOL};
@@ -467,5 +483,111 @@ export function buildCompatibilityBootstrapScript(
     var msg = reason instanceof Error ? reason.message : String(reason || "Lỗi bất đồng bộ (Unhandled Promise Rejection)");
     reportDiagnostic("error", msg);
   });
+
+  // Silent background reading progress sync & restore
+  (function setupSilentScrollSync() {
+    var restoreSettled = !(INITIAL_SCROLL && (INITIAL_SCROLL.scrollY > 0 || INITIAL_SCROLL.scrollRatio > 0.001));
+    var userInteracted = false;
+    var lastPostedY = -1;
+    var scrollTimer = null;
+
+    function markInteracted() {
+      userInteracted = true;
+    }
+    window.addEventListener("touchstart", markInteracted, { passive: true, capture: true });
+    window.addEventListener("pointerdown", markInteracted, { passive: true, capture: true });
+    window.addEventListener("wheel", markInteracted, { passive: true, capture: true });
+    window.addEventListener("keydown", markInteracted, { passive: true, capture: true });
+
+    function computeMaxScroll() {
+      var docEl = document.documentElement;
+      var body = document.body;
+      var sh = Math.max(docEl ? docEl.scrollHeight : 0, body ? body.scrollHeight : 0);
+      var vh = window.innerHeight || (docEl ? docEl.clientHeight : 0) || 0;
+      return Math.max(0, sh - vh);
+    }
+
+    function applyInitialScroll() {
+      if (userInteracted || !INITIAL_SCROLL) {
+        restoreSettled = true;
+        return;
+      }
+      var maxScroll = computeMaxScroll();
+      var targetY = 0;
+      if (INITIAL_SCROLL.scrollY > 0 && INITIAL_SCROLL.scrollY <= maxScroll) {
+        targetY = INITIAL_SCROLL.scrollY;
+      } else if (INITIAL_SCROLL.scrollRatio > 0.001 && maxScroll > 0) {
+        targetY = Math.min(maxScroll, Math.round(INITIAL_SCROLL.scrollRatio * maxScroll));
+      } else if (INITIAL_SCROLL.scrollY > 0) {
+        targetY = INITIAL_SCROLL.scrollY;
+      }
+      if (targetY > 0) {
+        try {
+          window.scrollTo(0, targetY);
+        } catch (_e) {}
+      }
+    }
+
+    if (!restoreSettled) {
+      var finishRestore = function() {
+        applyInitialScroll();
+        setTimeout(function() {
+          if (!userInteracted) applyInitialScroll();
+          restoreSettled = true;
+        }, 220);
+      };
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function() {
+          requestAnimationFrame(applyInitialScroll);
+        }, { once: true });
+        window.addEventListener("load", finishRestore, { once: true });
+      } else {
+        requestAnimationFrame(finishRestore);
+      }
+    }
+
+    function postScrollNow() {
+      if (!restoreSettled) return;
+      var y = Math.max(0, Math.round(window.scrollY || (document.documentElement ? document.documentElement.scrollTop : 0) || 0));
+      if (y === lastPostedY) return;
+      lastPostedY = y;
+      var maxScroll = computeMaxScroll();
+      var ratio = maxScroll > 0 ? Math.min(1, Math.max(0, y / maxScroll)) : 0;
+      postToHub({
+        type: "__YUNZY_SCROLL_SYNC__",
+        toolId: TOOL_ID,
+        token: CAP_TOKEN,
+        scrollY: y,
+        scrollRatio: ratio
+      });
+    }
+
+    window.addEventListener("scroll", function() {
+      if (!restoreSettled) return;
+      if (scrollTimer !== null) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(function() {
+        scrollTimer = null;
+        postScrollNow();
+      }, 450);
+    }, { passive: true });
+
+    window.addEventListener("pagehide", function() {
+      if (scrollTimer !== null) {
+        clearTimeout(scrollTimer);
+        scrollTimer = null;
+      }
+      postScrollNow();
+    });
+
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === "hidden") {
+        if (scrollTimer !== null) {
+          clearTimeout(scrollTimer);
+          scrollTimer = null;
+        }
+        postScrollNow();
+      }
+    });
+  })();
 })();`;
 }

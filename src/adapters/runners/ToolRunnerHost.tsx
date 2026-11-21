@@ -9,6 +9,9 @@ interface ToolRunnerHostProps {
   reloadTrigger: number;
   onReloadRequest: () => void;
   onEditCode?: () => void;
+  isBottomTabBar?: boolean;
+  showInfoPopover?: boolean;
+  onShowInfoPopoverChange?: (open: boolean) => void;
 }
 
 /**
@@ -20,6 +23,9 @@ export const ToolRunnerHost: React.FC<ToolRunnerHostProps> = ({
   reloadTrigger,
   onReloadRequest,
   onEditCode,
+  isBottomTabBar = false,
+  showInfoPopover,
+  onShowInfoPopoverChange,
 }) => {
   switch (tool.type) {
     case 'html':
@@ -29,6 +35,9 @@ export const ToolRunnerHost: React.FC<ToolRunnerHostProps> = ({
           tool={tool}
           reloadTrigger={reloadTrigger}
           onReloadRequest={onReloadRequest}
+          isBottomTabBar={isBottomTabBar}
+          showInfoPopover={showInfoPopover}
+          onShowInfoPopoverChange={onShowInfoPopoverChange}
         />
       );
     case 'url':

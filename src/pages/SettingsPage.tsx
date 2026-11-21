@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  ArrowUpDown,
+  BookOpen,
   CheckCircle2,
   Database,
   Download,
@@ -18,8 +20,10 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  Type,
   Upload,
   Vibrate,
+  X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -31,16 +35,25 @@ import { PWAInstallButton } from '../components/PWAInstallButton';
 import {
   formatBytes,
   toolRepository,
+  type AppFontFamily,
   type ThemeMode,
+  type WorkspaceTabBarPosition,
 } from '../repositories/toolRepository';
 import type { ToolManifest } from '../types/models';
 import { APP_VERSION } from '../utils/appVersion';
+import { APP_FONT_OPTIONS } from '../utils/fonts';
 import { haptic } from '../utils/haptics';
 
 interface SettingsPageProps {
   tools: ToolManifest[];
   theme: ThemeMode;
   onThemeChange: (nextTheme: ThemeMode) => void;
+  fontFamily?: AppFontFamily;
+  onFontFamilyChange?: (font: AppFontFamily) => void;
+  fontScale?: number;
+  onFontScaleChange?: (scale: number) => void;
+  workspaceTabBarPosition?: WorkspaceTabBarPosition;
+  onWorkspaceTabBarPositionChange?: (position: WorkspaceTabBarPosition) => void;
   hapticsEnabled?: boolean;
   onHapticsEnabledChange?: (enabled: boolean) => void;
   reducedMotion?: boolean;
@@ -125,6 +138,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   tools,
   theme,
   onThemeChange,
+  fontFamily = 'system',
+  onFontFamilyChange,
+  fontScale = 1.0,
+  onFontScaleChange,
+  workspaceTabBarPosition = 'top',
+  onWorkspaceTabBarPositionChange,
   hapticsEnabled = true,
   onHapticsEnabledChange,
   reducedMotion = false,
@@ -153,6 +172,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [confirmClearStorage, setConfirmClearStorage] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [showAdvancedInfo, setShowAdvancedInfo] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
+  const [sliderScale, setSliderScale] = useState(fontScale);
+
+  useEffect(() => {
+    setSliderScale(fontScale);
+  }, [fontScale]);
 
   const backupInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -585,6 +610,110 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
           </div>
 
+          {/* Font Family Selector (10 Bundled Fonts) */}
+          <div className="px-4 sm:px-5 py-3.5 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <Type className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
+                <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                  Phông chữ
+                </span>
+              </div>
+              <span className="text-xs font-semibold text-[#FF6B35]">
+                {APP_FONT_OPTIONS.find((f) => f.id === fontFamily)?.label || 'Hệ thống'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {APP_FONT_OPTIONS.map((opt) => {
+                const selected = fontFamily === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      haptic.selection();
+                      onFontFamilyChange?.(opt.id);
+                    }}
+                    style={{ fontFamily: opt.fontFamilyCss }}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border text-left transition-colors ${
+                      selected
+                        ? 'bg-[#17130F] dark:bg-white border-transparent text-[#F3EEE3] dark:text-[#17130F]'
+                        : 'bg-[#F5F5F7] dark:bg-[#1F1F23] border-black/[0.06] dark:border-white/[0.08] text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    <span
+                      className={`text-[15px] font-bold shrink-0 ${
+                        selected ? 'text-[#FF6B35]' : 'text-neutral-900 dark:text-white'
+                      }`}
+                    >
+                      Aa
+                    </span>
+                    <span className="text-xs font-medium truncate">{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Font Size Slider */}
+          <div className="px-4 sm:px-5 py-3.5 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                Kích thước chữ
+              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs font-semibold tabular-nums ${
+                    Math.abs(sliderScale - 1.0) < 0.01
+                      ? 'text-neutral-500 dark:text-neutral-400'
+                      : 'text-[#FF6B35]'
+                  }`}
+                >
+                  {Math.abs(sliderScale - 1.0) < 0.01
+                    ? 'Hệ thống (100%)'
+                    : `${Math.round(sliderScale * 100)}%`}
+                </span>
+                {Math.abs(sliderScale - 1.0) >= 0.01 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic.selection();
+                      setSliderScale(1.0);
+                      onFontScaleChange?.(1.0);
+                    }}
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-[#007AFF]/12 text-[#007AFF] dark:text-[#0A84FF]"
+                  >
+                    Mặc định
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-semibold text-neutral-500">A</span>
+              <input
+                type="range"
+                aria-label="Kích thước chữ"
+                min={0.85}
+                max={1.3}
+                step={0.05}
+                value={sliderScale}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setSliderScale(next);
+                  onFontScaleChange?.(next);
+                }}
+                className="flex-1 accent-[#FF6B35]"
+              />
+              <span className="text-base font-bold text-neutral-900 dark:text-white">A</span>
+            </div>
+
+            <div className="px-3 py-2 rounded-xl bg-[#F5F5F7] dark:bg-[#1F1F23] text-[13px] text-neutral-900 dark:text-white">
+              Xem trước cỡ chữ
+            </div>
+          </div>
+
           <SettingsSwitchRow
             icon={Vibrate}
             label="Phản hồi rung"
@@ -596,7 +725,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <SettingsSwitchRow
             icon={Sparkles}
             label="Giảm chuyển động"
-            subtitle="Tối giản hiệu ứng để phản hồi tức thì"
             checked={reducedMotion}
             onToggle={(next) => onReducedMotionChange?.(next)}
           />
@@ -623,6 +751,56 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           Không gian &amp; Công cụ
         </h2>
         <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] divide-y divide-black/[0.06] dark:divide-white/[0.07] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+          {/* Workspace Tab Bar Position (Top / Bottom) */}
+          <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <ArrowUpDown className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
+              <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                Vị trí thanh tab
+              </span>
+            </div>
+
+            <div
+              className="inline-flex p-1 rounded-xl bg-black/[0.05] dark:bg-white/[0.07]"
+              role="group"
+              aria-label="Vị trí thanh tab"
+            >
+              {(
+                [
+                  { id: 'top', label: 'Trên cùng' },
+                  { id: 'bottom', label: 'Dưới cùng' },
+                ] as const
+              ).map((pos) => {
+                const active = workspaceTabBarPosition === pos.id;
+                return (
+                  <motion.button
+                    key={pos.id}
+                    type="button"
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => {
+                      haptic.selection();
+                      onWorkspaceTabBarPositionChange?.(pos.id);
+                    }}
+                    className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      active
+                        ? 'text-neutral-950 dark:text-white font-semibold'
+                        : 'text-neutral-600 dark:text-neutral-400'
+                    }`}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="tabbar-pos-pill"
+                        transition={SEGMENT_SPRING}
+                        className="absolute inset-0 rounded-lg bg-white dark:bg-[#2C2C2E] shadow-2xs"
+                      />
+                    )}
+                    <span className="relative z-10">{pos.label}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Open Workspace Tabs */}
           <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -943,6 +1121,36 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       </section>
 
+      {/* Group 4: Hướng dẫn & Hỗ trợ */}
+      <section className="space-y-1.5">
+        <h2 className="px-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          Hướng dẫn &amp; Hỗ trợ
+        </h2>
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#161618] overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+          <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <BookOpen className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
+              <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                Hướng dẫn sử dụng
+              </span>
+            </div>
+
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              onClick={() => {
+                haptic.light();
+                setShowUserGuide(true);
+              }}
+              className="relative px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-black/[0.08] dark:border-white/[0.11] bg-white dark:bg-[#1F1F23] text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-[#2A2A2E] transition-colors shrink-0"
+            >
+              <HapticTapOverlay />
+              Xem
+            </motion.button>
+          </div>
+        </div>
+      </section>
+
       {/* Collapsible Advanced Info */}
       <AnimatePresence initial={false}>
         {showAdvancedInfo && (
@@ -981,6 +1189,71 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <p className="pt-2 pb-1 text-center text-[11px] font-mono tabular-nums text-neutral-400 dark:text-neutral-500 select-none">
         YunzyHub v{APP_VERSION}
       </p>
+
+      {/* User Guide Modal */}
+      {showUserGuide && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 backdrop-blur-xs p-0 sm:p-4"
+          onClick={() => setShowUserGuide(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#161618] border border-black/[0.08] dark:border-white/[0.1] shadow-2xl overflow-hidden ios-bottom-safe"
+          >
+            <div className="px-5 py-3.5 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#FF6B35]" />
+                <h3 className="text-sm font-semibold text-neutral-950 dark:text-white">
+                  Hướng dẫn sử dụng
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUserGuide(false)}
+                aria-label="Đóng hướng dẫn"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-800 dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#1F1F23] space-y-1">
+                <p className="font-semibold text-neutral-950 dark:text-white">
+                  1. Cài vào iPhone (PWA) &amp; Hoạt động ngoại tuyến
+                </p>
+                <p>• Mở YunzyHub bằng Safari trên iPhone → chạm nút Chia sẻ (Share) → chọn Thêm vào MH chính.</p>
+                <p>• Toàn bộ ứng dụng, tài liệu và phông chữ được lưu cục bộ trong IndexedDB để dùng offline.</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#1F1F23] space-y-1">
+                <p className="font-semibold text-neutral-950 dark:text-white">
+                  2. Quản lý &amp; Chia sẻ tài liệu
+                </p>
+                <p>• Nhấn nút (+) ở màn hình Home hoặc Thư viện để thêm tệp HTML, gói ZIP, DOCX, Markdown, PDF, CSV.</p>
+                <p>• Ấn giữ vào thẻ tài liệu để mở menu nhanh: Mở, Chia sẻ, Mã nguồn, Yêu thích, Chỉnh sửa và Xóa.</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-[#F5F5F7] dark:bg-[#1F1F23] space-y-1">
+                <p className="font-semibold text-neutral-950 dark:text-white">
+                  3. Không gian đa nhiệm &amp; Tiến độ đọc ngầm
+                </p>
+                <p>• Chọn Vị trí thanh tab Trên cùng hoặc Dưới cùng trong Cài đặt. Vuốt xuống (hoặc vuốt lên nếu đặt ở dưới) từ thanh tab để chuyển nhanh thẻ đang mở.</p>
+                <p>• Nhấn (+) trên thanh tab để thêm nhanh từ Thư viện; ấn giữ thẻ tab để Tải lại, Thông tin, Mã nguồn, Chia sẻ hoặc Đóng.</p>
+                <p>• Vị trí cuộn tài liệu được lưu ngầm tự động và mở lại đúng đoạn đang đọc.</p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-black/[0.06] dark:border-white/[0.08]">
+              <button
+                type="button"
+                onClick={() => setShowUserGuide(false)}
+                className="w-full h-11 rounded-2xl text-xs font-semibold bg-[#17130F] dark:bg-white text-white dark:text-[#17130F]"
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
